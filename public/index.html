@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Todo 助手</title>
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body { font-family: system-ui, -apple-system, "PingFang SC", sans-serif; margin: 0; background: #0f1115; color: #e6e6e6; }
+      .wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
+      h1 { font-size: 20px; }
+      .card { background: #171a21; border: 1px solid #262b36; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+      input, button, textarea { font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid #2c3340; background: #0f1115; color: inherit; width: 100%; }
+      button { background: #3b82f6; border: 0; color: #fff; cursor: pointer; width: auto; }
+      button.ghost { background: transparent; border: 1px solid #2c3340; color: #9aa4b2; }
+      .row { display: flex; gap: 8px; align-items: center; }
+      .task { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #222732; }
+      .task:last-child { border-bottom: 0; }
+      .pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #222732; color: #9aa4b2; }
+      .pill.high { background: #3a1d1d; color: #ff8a8a; }
+      .muted { color: #8b95a5; font-size: 13px; }
+      .hidden { display: none; }
+      #msg { min-height: 18px; color: #ff8a8a; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>AI Todo 助手</h1>
+      <div id="msg"></div>
+
+      <!-- 登录 -->
+      <section id="login" class="card hidden">
+        <h2>登录</h2>
+        <div class="row" style="margin-bottom:8px">
+          <input id="username" placeholder="用户名" autocomplete="username" />
+        </div>
+        <div class="row" style="margin-bottom:8px">
+          <input id="password" type="password" placeholder="密码" autocomplete="current-password" />
+        </div>
+        <button id="loginBtn">登录</button>
+      </section>
+
+      <!-- 主界面 -->
+      <section id="main" class="card hidden">
+        <div class="row" style="justify-content:space-between;margin-bottom:12px">
+          <strong id="who"></strong>
+          <button class="ghost" id="logoutBtn">退出</button>
+        </div>
+
+        <div class="row" style="margin-bottom:12px">
+          <input id="newTitle" placeholder="新任务标题（必填）" />
+          <select id="newPriority" style="width:auto">
+            <option value="high">高</option>
+            <option value="medium" selected>中</option>
+            <option value="low">低</option>
+          </select>
+          <button id="addBtn">添加</button>
+        </div>
+
+        <div class="row" style="gap:8px;margin-bottom:8px">
+          <button class="ghost" data-view="today">今日</button>
+          <button class="ghost" data-view="overdue">逾期</button>
+          <button class="ghost" data-view="week">本周</button>
+          <button class="ghost" data-view="completed">已完成</button>
+        </div>
+
+        <div id="list"></div>
+        <p class="muted" id="mode"></p>
+      </section>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>

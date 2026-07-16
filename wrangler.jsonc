@@ -1,0 +1,31 @@
+{
+  "name": "ai-todo-assistant",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "vars": {
+    "AI_ENABLED": "false",
+    "AI_PROVIDER": "workers_ai",
+    "AI_MODEL": "<deployment-verified-model-id>",
+    "BUSINESS_TIMEZONE": "Asia/Shanghai",
+    "AI_TIMEOUT_MS": "10000",
+    "AI_MAX_OUTPUT_TOKENS": "400",
+    "AI_DAILY_MANUAL_LIMIT": "5"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ai-todo",
+      "database_id": "<replace-with-d1-id>"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "triggers": {
+    "crons": [
+      "30 0 * * 1-5",
+      "30 10 * * *",
+      "45 10 * * 5"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+# 本地开发用密钥（不要提交到仓库）。复制为 .dev.vars 后填写真实值。
+# wrangler dev 会自动读取 .dev.vars；生产环境用 `wrangler secret put`。
+
+SESSION_SECRET=replace-with-a-long-random-string-min-32-chars
+WECOM_WEBHOOK_URL=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=replace-me
+
+# 仅在启用 Workers AI 时使用（MVP1 默认关闭）
+# AI_ENABLED=false

@@ -1,0 +1,26 @@
+# 依赖
+node_modules/
+
+# 构建 / 缓存
+.wrangler/
+dist/
+coverage/
+
+# 密钥 / 本地环境（严禁提交）
+.dev.vars
+.env
+.env.*
+*.local
+
+# 日志
+*.log
+npm-debug.log*
+
+# 编辑器 / OS
+.claude/
+.idea/
+.vscode/
+.DS_Store
+
+# 测试产物
+.coverage/

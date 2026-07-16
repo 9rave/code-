@@ -1,0 +1,25 @@
+{
+  "name": "ai-todo-assistant",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@10.8.0",
+  "description": "AI Todo 助手 — Cloudflare Workers + D1 + Cron + 企业微信群机器人，规则引擎默认可用，Workers AI 免费增强",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "seed": "tsx scripts/seed.ts",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240701.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "wrangler": "^3.70.0"
+  }
+}
