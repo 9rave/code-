@@ -13,7 +13,7 @@ export async function runWeekly(env: Env): Promise<void> {
   const user = await firstUser(env);
   if (!user) return;
   const { degraded, review } = await reviewSvc.generateReview(env, user.id, "weekly", false, reqId);
-  const content = pushSvc.renderWeekly(bd, review.content);
+  const content = pushSvc.renderWeekly(bd, review.content, review.source);
   await pushSvc.sendPush(env, user.id, "weekly", content, reqId);
   log("info", "weekly_run", { date: bd, source: review.source, degraded }, reqId);
 }

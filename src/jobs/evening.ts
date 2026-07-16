@@ -13,7 +13,7 @@ export async function runEvening(env: Env): Promise<void> {
   const user = await firstUser(env);
   if (!user) return;
   const { degraded, review } = await reviewSvc.generateReview(env, user.id, "evening", false, reqId);
-  const content = pushSvc.renderEvening(bd, review.content);
+  const content = pushSvc.renderEvening(bd, review.content, review.source);
   await pushSvc.sendPush(env, user.id, "evening", content, reqId);
   log("info", "evening_run", { date: bd, source: review.source, degraded }, reqId);
 }

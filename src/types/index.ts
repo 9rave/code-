@@ -6,40 +6,41 @@ export type ReviewType = "morning" | "evening" | "weekly";
 export type ReviewSource = "rule" | "ai";
 export type PushType = "morning" | "evening" | "weekly" | "test";
 
+// 内部 Task 与对外契约一致，使用 camelCase；queries 层负责与 D1 的 snake_case 列互转。
 export interface Task {
   id: string;
-  user_id: string;
+  userId: string;
   title: string;
   description: string | null;
   priority: Priority;
   status: TaskStatus;
-  due_date: string | null;
-  estimated_duration_minutes: number | null;
+  dueDate: string | null;
+  estimatedDurationMinutes: number | null;
   tags: string[];
-  rollover_count: number;
-  completed_at: string | null;
-  deleted_at: string | null;
-  created_at: string;
-  updated_at: string;
+  rolloverCount: number;
+  completedAt: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DailyLog {
-  log_date: string;
+  logDate: string;
   mood: string | null;
   summary: string;
   blockers: string | null;
-  updated_at: string;
+  updatedAt: string;
 }
 
 export interface Review {
-  review_date: string;
-  review_type: ReviewType;
+  reviewDate: string;
+  reviewType: ReviewType;
   content: string;
   source: ReviewSource;
   provider: string | null;
   model: string | null;
-  regenerated_at: string | null;
-  created_at: string;
+  regeneratedAt: string | null;
+  createdAt: string;
 }
 
 export interface SessionUser {
@@ -92,6 +93,9 @@ export interface ModelAdapter {
   generateReview(input: ReviewInput, options: GenerateOptions): Promise<ModelResult>;
   healthCheck?(): Promise<ProviderHealth>;
 }
+
+// 会话载荷（与 security/session.ts 保持一致，便于路由直接从 types 引入）
+export type { SessionPayload } from "../security/session";
 
 // ---- 运行环境 ----
 export interface Env {

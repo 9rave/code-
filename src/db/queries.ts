@@ -9,19 +9,19 @@ type DB = D1Database;
 function rowToTask(r: any): Task {
   return {
     id: r.id,
-    user_id: r.user_id,
+    userId: r.user_id,
     title: r.title,
     description: r.description,
     priority: r.priority,
     status: r.status,
-    due_date: r.due_date,
-    estimated_duration_minutes: r.estimated_duration_minutes,
+    dueDate: r.due_date,
+    estimatedDurationMinutes: r.estimated_duration_minutes,
     tags: r.tags_json ? JSON.parse(r.tags_json) : [],
-    rollover_count: r.rollover_count,
-    completed_at: r.completed_at,
-    deleted_at: r.deleted_at,
-    created_at: r.created_at,
-    updated_at: r.updated_at,
+    rolloverCount: r.rollover_count,
+    completedAt: r.completed_at,
+    deletedAt: r.deleted_at,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
   };
 }
 
@@ -233,7 +233,7 @@ export async function getDailyLog(db: DB, userId: string, logDate: string): Prom
 }
 
 function rowToDailyLog(r: any): DailyLog {
-  return { log_date: r.log_date, mood: r.mood, summary: r.summary, blockers: r.blockers, updated_at: r.updated_at };
+  return { logDate: r.log_date, mood: r.mood, summary: r.summary, blockers: r.blockers, updatedAt: r.updated_at };
 }
 
 // ---------- 复盘（幂等 UPSERT） ----------
@@ -296,14 +296,14 @@ export async function getReviews(
 
 function rowToReview(r: any): Review {
   return {
-    review_date: r.review_date,
-    review_type: r.review_type,
+    reviewDate: r.review_date,
+    reviewType: r.review_type,
     content: r.content,
     source: r.source,
     provider: r.provider,
     model: r.model,
-    regenerated_at: r.regenerated_at,
-    created_at: r.created_at,
+    regeneratedAt: r.regenerated_at,
+    createdAt: r.created_at,
   };
 }
 
@@ -376,7 +376,7 @@ export async function getDayStats(db: DB, userId: string, bd: string): Promise<{
     .bind(userId)
     .all();
   let completed = 0, pending = 0, overdue = 0, highPriority = 0, total = 0;
-  for (const r of rows.results ?? []) {
+  for (const r of (rows.results ?? []) as any[]) {
     total += r.c;
     if (r.status === "completed") completed += r.c;
     if (r.status === "pending") {
@@ -394,4 +394,44 @@ function weekEndingSunday(bd: string): string {
   const add = day === 0 ? 0 : 7 - day;
   d.setUTCDate(d.getUTCDate() + add);
   return d.toISOString().slice(0, 10);
+}
+
+// ---------- 速率限制（固定窗口，跨实例一致，见 ADR-001） ----------
+export function evaluateWindow(
+  prev: { count: number; resetAt: number } | null,
+  nowMs: number,
+  windowMs: number,
+  max: number
+): { count: number; resetAt: number; allowed: boolean; retryAfterMs: number } {
+  const resetAt = nowMs + windowMs;
+  if (!prev || prev.resetAt <= nowMs) {
+    return { count: 1, resetAt, allowed: true, retryAfterMs: windowMs };
+  }
+  const count = prev.count + 1;
+  return { count, resetAt: prev.resetAt, allowed: count <= max, retryAfterMs: Math.max(0, prev.resetAt - nowMs) };
+}
+
+export async function rateLimitHit(
+  db: DB,
+  key: string,
+  windowMs: number,
+  max: number,
+  nowMs: number
+): Promise<{ allowed: boolean; retryAfterMs: number }> {
+  const prevRow = (await db
+    .prepare("SELECT count, reset_at FROM rate_limits WHERE key = ?")
+    .bind(key)
+    .first()) as { count: number; reset_at: number } | null;
+  const prev = prevRow ? { count: prevRow.count, resetAt: prevRow.reset_at } : null;
+  const ev = evaluateWindow(prev, nowMs, windowMs, max);
+  await db
+    .prepare(
+      `INSERT INTO rate_limits (key, count, reset_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET
+         count = excluded.count,
+         reset_at = excluded.reset_at`
+    )
+    .bind(key, ev.count, ev.resetAt)
+    .run();
+  return { allowed: ev.allowed, retryAfterMs: ev.retryAfterMs };
 }

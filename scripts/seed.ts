@@ -1,13 +1,19 @@
 // Seed CLI：计算密码哈希并写入 D1（见开发指南 §12.2）
 // 用法：INITIAL_ADMIN_USERNAME=admin INITIAL_ADMIN_PASSWORD='xxx' npm run seed
 import { execSync } from "node:child_process";
-import { hashPassword, generateSalt, passwordParams } from "../src/security/password";
+import { hashPassword, generateSalt, passwordParams, validatePasswordPolicy } from "../src/security/password";
 
 async function main() {
   const username = process.env.INITIAL_ADMIN_USERNAME || "admin";
   const password = process.env.INITIAL_ADMIN_PASSWORD;
   if (!password) {
     console.error("请设置 INITIAL_ADMIN_PASSWORD 环境变量（也可设置 INITIAL_ADMIN_USERNAME）");
+    process.exit(1);
+  }
+  try {
+    validatePasswordPolicy(password); // 首账号也须满足强度策略（ADR-004）
+  } catch (e: any) {
+    console.error("密码不符合策略：" + (e?.message || e));
     process.exit(1);
   }
   const salt = generateSalt();

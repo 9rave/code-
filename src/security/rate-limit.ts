@@ -1,29 +1,17 @@
-// 速率限制：单实例内存兜底（见开发指南 §7.5）
-// 注意：Workers 多实例下内存不共享。生产应改用 KV / D1 做跨请求计数。
-// 登录 IP 限流、AI 每日手动上限均走此接口。
+// 速率限制：D1 固定窗口计数（见开发指南 §7.5 / ADR-001）
+// 取代单实例内存 Map。所有写接口与登录的限流均走 D1，跨实例一致。
+import type { D1Database } from "@cloudflare/workers-types";
+import { rateLimitHit, evaluateWindow } from "../db/queries";
 
-interface Bucket {
-  count: number;
-  resetAt: number;
+export async function checkRateLimit(
+  db: D1Database,
+  key: string,
+  windowMs: number,
+  max: number
+): Promise<{ allowed: boolean; retryAfterMs: number }> {
+  return rateLimitHit(db, key, windowMs, max, Date.now());
 }
 
-export class RateLimiter {
-  private store = new Map<string, Bucket>();
-
-  constructor(private windowMs: number, private max: number) {}
-
-  check(key: string): boolean {
-    const now = Date.now();
-    const b = this.store.get(key);
-    if (!b || b.resetAt < now) {
-      this.store.set(key, { count: 1, resetAt: now + this.windowMs });
-      return true;
-    }
-    if (b.count >= this.max) return false;
-    b.count++;
-    return true;
-  }
-}
-
-// 预置限流器
-export const loginLimiter = new RateLimiter(15 * 60 * 1000, 10); // 10 次 / 15 分钟 / IP
+// 预设窗口（登录暴力防护）
+export const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 分钟
+export const LOGIN_MAX = 10; // 每 IP 10 次

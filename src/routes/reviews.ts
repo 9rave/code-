@@ -1,6 +1,6 @@
 // 日志 / 复盘路由（见开发指南 §6.5）
 import type { Env, SessionPayload, ReviewType } from "../types";
-import { json, ok, HttpError } from "../utils/errors";
+import { json, ok, errorResponse } from "../utils/errors";
 import { requestId } from "../utils/id";
 import * as reviewSvc from "../services/review-service";
 import { businessDate, addDays } from "../utils/time";
@@ -41,7 +41,7 @@ export async function list(req: Request, env: Env, user: SessionPayload): Promis
 
 export async function generate(req: Request, env: Env, user: SessionPayload): Promise<Response> {
   const reqId = requestId();
-  const body = await req.json().catch(() => ({}));
+  const body = (await req.json().catch(() => ({}))) as Record<string, any>;
   const type = (body.type as ReviewType) || "evening";
   try {
     await reviewSvc.enforceManualLimit(env, user.sub); // 仅手动生成受限
@@ -54,7 +54,5 @@ export async function generate(req: Request, env: Env, user: SessionPayload): Pr
 }
 
 function err(e: unknown, reqId: string): Response {
-  const code = (e as HttpError).code || "INTERNAL_ERROR";
-  const status = (e as HttpError).status || 500;
-  return json({ ok: false, error: { code, message: (e as Error).message, requestId: reqId } }, status);
+  return errorResponse(e, reqId);
 }

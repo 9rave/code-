@@ -1,12 +1,17 @@
 // 推送服务：企业微信 Markdown 渲染、幂等、重试（见开发指南 §9）
-import type { Env, PushType, Task } from "../types";
+import type { Env, PushType, Task, ReviewSource } from "../types";
 import * as q from "../db/queries";
 import { businessDate } from "../utils/time";
 import { HttpError, STATUS } from "../utils/errors";
 import { log } from "../utils/logger";
+import { sanitizeWeComMarkdown } from "../security/sanitize";
+
+function modeLabel(source: ReviewSource | "rule"): string {
+  return source === "ai" ? "AI 增强" : "规则引擎";
+}
 
 // ---------- 渲染 ----------
-export function renderMorning(date: string, today: Task[], overdue: Task[]): string {
+export function renderMorning(date: string, today: Task[], overdue: Task[], source: ReviewSource | "rule" = "rule"): string {
   const high = today.filter((t) => t.priority === "high").length;
   const lines: string[] = [];
   lines.push(`**AI Todo 早报｜${date}**`);
@@ -14,22 +19,24 @@ export function renderMorning(date: string, today: Task[], overdue: Task[]): str
   lines.push("");
   const all = [...overdue, ...today].slice(0, 15);
   all.forEach((t, i) => {
-    const tag = t.due_date && t.due_date < date ? "【逾期】" : t.priority === "high" ? "【高】" : "";
-    const dur = t.estimated_duration_minutes ? `（预计 ${t.estimated_duration_minutes} 分钟）` : "";
+    const tag = t.dueDate && t.dueDate < date ? "【逾期】" : t.priority === "high" ? "【高】" : "";
+    const dur = t.estimatedDurationMinutes ? `（预计 ${t.estimatedDurationMinutes} 分钟）` : "";
     lines.push(`${i + 1}. ${tag}${t.title}${dur}`);
   });
   lines.push("");
   lines.push("建议：先处理逾期且高优先级事项。");
-  lines.push(`生成模式：${"规则引擎 / AI 增强"}`);
-  return lines.join("\n");
+  lines.push(`生成模式：${modeLabel(source)}`);
+  return sanitizeWeComMarkdown(lines.join("\n"));
 }
 
-export function renderEvening(date: string, content: string): string {
-  return `**AI Todo 晚报｜${date}**\n\n${content}\n\n> 生成模式：规则引擎 / AI 增强`;
+export function renderEvening(date: string, content: string, source: ReviewSource | "rule" = "rule"): string {
+  const body = sanitizeWeComMarkdown(content);
+  return sanitizeWeComMarkdown(`**AI Todo 晚报｜${date}**\n\n${body}\n\n> 生成模式：${modeLabel(source)}`);
 }
 
-export function renderWeekly(date: string, content: string): string {
-  return `**AI Todo 周报｜${date}**\n\n${content}`;
+export function renderWeekly(date: string, content: string, source: ReviewSource | "rule" = "rule"): string {
+  const body = sanitizeWeComMarkdown(content);
+  return sanitizeWeComMarkdown(`**AI Todo 周报｜${date}**\n\n${body}\n\n> 生成模式：${modeLabel(source)}`);
 }
 
 export function renderTest(): string {

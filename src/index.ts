@@ -1,7 +1,7 @@
 // Worker 入口：HTTP 路由 + Cron 分发（见开发指南 §6 / §9.2）
 import type { Env } from "./types";
 import type { ScheduledController, ExecutionContext } from "@cloudflare/workers-types";
-import { json, errorBody } from "./utils/errors";
+import { json, errorBody, errorResponse } from "./utils/errors";
 import * as auth from "./services/auth-service";
 import * as taskSvc from "./services/task-service";
 import * as reviewSvc from "./services/review-service";
@@ -70,7 +70,7 @@ export default {
 
       return json(errorBody("NOT_FOUND", "路径不存在", reqId), 404);
     } catch (e: any) {
-      return json(errorBody(e?.code || "INTERNAL_ERROR", e?.message || "服务器内部错误", reqId), e?.status || 500);
+      return errorResponse(e, reqId);
     }
   },
 

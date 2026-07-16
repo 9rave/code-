@@ -25,7 +25,7 @@ export async function generateWithFallback(
   opts: GenerateOptions
 ): Promise<FallbackResult> {
   const rule = new RuleBasedAdapter();
-  const baseline = await rule.generateReview(input, opts);
+  const baseline = await rule.generateReview(input);
 
   if (env.AI_ENABLED !== "true" || !env.AI) {
     return { result: baseline, degraded: false };
