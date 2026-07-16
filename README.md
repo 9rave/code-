@@ -17,20 +17,26 @@ cp .dev.vars.example .dev.vars   # 填入 SESSION_SECRET / WECOM_WEBHOOK_URL
 wrangler d1 create ai-todo
 #   把输出的 database_id 填进 wrangler.jsonc 的 d1_databases.database_id
 
-# 2. 迁移
-wrangler d1 execute ai-todo --file=./src/db/migrations/0001_init.sql
+# 2. 迁移（幂等，按序执行 0001 / 0002）
+npm run migrate            # 等价于对 src/db/migrations/*.sql 顺序执行 wrangler d1 execute
 
-# 3. Seed 首个管理员（会提示输入用户名/密码）
-npm run seed
+# 3. Seed 首个管理员（环境变量注入密码，须 ≥12 位且含 3 类字符）
+INITIAL_ADMIN_USERNAME=admin INITIAL_ADMIN_PASSWORD='你的强密码' npm run seed
 
 # 4. 本地开发
 npm run dev
 
-# 5. 测试
+# 5. 自测（类型检查 + 单元测试）
+npm run typecheck
 npm test
 
-# 6. 上线
-npm run deploy
+# 6. 上线（多环境）
+npm run deploy                     # 默认环境
+npm run deploy:staging             # --env staging（可启用 AI_ENABLED=true）
+npm run deploy:production          # --env production
+
+# 7. 备份（导出各表为 JSON/CSV 到 exports/<时间戳>/）
+npm run export
 ```
 
 ## 目录
@@ -51,6 +57,12 @@ tests/                # 单元测试
 
 ## 环境变量（wrangler.jsonc → vars）
 `AI_ENABLED`(默认 false) · `BUSINESS_TIMEZONE`(Asia/Shanghai) · `AI_TIMEOUT_MS`(10000) · `AI_MAX_OUTPUT_TOKENS`(400) · `AI_DAILY_MANUAL_LIMIT`(5)
+
+> ⚠️ **启用 AI 前必须核实模型 ID**：`AI_MODEL` 默认为 `@cf/meta/llama-3.3-70b-instruct-fp8-fast`，但 Cloudflare 模型目录会更新。启用 `AI_ENABLED=true` 前，请在 Cloudflare 控制台确认该模型 ID 当前可用（见开发指南附录 C）。AI 默认关闭，关闭时占位符不会触发任何调用。
+
+## 安全要点
+- **首账号密码策略**：`validatePasswordPolicy` 强制 ≥12 位且含大小写/数字/符号中至少 3 类；Seed 与改密均生效。初始密码经 `INITIAL_ADMIN_PASSWORD` 注入，**首次登录强制改密**，请通过安全通道（口令管理器/当面）告知，不入库、不进 Git、不写聊天记录。
+- **登录限流**：已落地为 D1 固定窗口（10 次/15 分钟/IP），跨实例一致；超限返回 429 并带 `Retry-After`。
 
 ## Secrets（不在仓库）
 `SESSION_SECRET` · `WECOM_WEBHOOK_URL`（仅启用第三方 Provider 时才加其 Key）
