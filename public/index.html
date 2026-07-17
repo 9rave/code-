@@ -2,13 +2,15 @@
 <html lang="zh-CN" data-theme="system">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f1115" />
     <title>AI Todo 助手</title>
     <style>
       :root {
         --bg: #0f1115; --fg: #e6e6e6; --card: rgba(255,255,255,0.04);
         --border: rgba(255,255,255,0.10); --muted: #8b95a5; --accent: #3b82f6;
         --pill: #222732; --pill-hi: #3a1d1d; --pill-hi-fg: #ff8a8a;
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
       }
       :root[data-theme="light"] {
         --bg: #f4f6fb; --fg: #1a1f29; --card: rgba(255,255,255,0.7);
@@ -16,32 +18,87 @@
         --pill: #e7ebf3; --pill-hi: #fbe3e3; --pill-hi-fg: #c0392b;
       }
       * { box-sizing: border-box; }
+      html, body { -webkit-text-size-adjust: 100%; }
       body { font-family: system-ui, -apple-system, "PingFang SC", sans-serif; margin: 0;
-        background: var(--bg); color: var(--fg); transition: background .3s, color .3s; }
+        background: var(--bg); color: var(--fg); transition: background .3s, color .3s; line-height: 1.5; }
+
       .wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 48px; }
-      header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-      h1 { font-size: 18px; margin: 0; }
+
+      header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
+      h1 { font-size: 18px; margin: 0; letter-spacing: .3px;
+        background: linear-gradient(90deg, var(--accent), #8b5cf6);
+        -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
       .glass { background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-        padding: 16px; margin-bottom: 16px; backdrop-filter: blur(14px); }
-      input, button, textarea, select { font: inherit; padding: 9px 12px; border-radius: 10px;
-        border: 1px solid var(--border); background: var(--bg); color: var(--fg); }
-      button { background: var(--accent); border: 0; color: #fff; cursor: pointer; }
-      button.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+        padding: 16px; margin-bottom: 16px; backdrop-filter: blur(14px);
+        transition: border-color .2s, transform .15s ease; }
+
+      /* 16px base on form controls → 防止 iOS 聚焦自动放大 */
+      input, button, textarea, select { font: inherit; font-size: 16px; padding: 10px 12px;
+        border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--fg);
+        min-height: 44px; transition: transform .12s ease, background .2s, border-color .2s, filter .2s; }
+      input::placeholder, textarea::placeholder { color: var(--muted); }
+      button { background: var(--accent); border: 0; color: #fff; cursor: pointer; font-weight: 600;
+        display: inline-flex; align-items: center; justify-content: center; }
+      button:active { transform: scale(.96); }
+      button.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); font-weight: 500; }
+      button:disabled { opacity: .55; cursor: not-allowed; }
+      @media (hover: hover) {
+        button:hover:not(:disabled) { filter: brightness(1.08); }
+        nav button:hover { border-color: var(--accent); }
+        .glass:hover { border-color: rgba(59,130,246,.35); }
+      }
+
       .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-      .task { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+      .task { display: flex; justify-content: space-between; align-items: center; padding: 12px 0;
+        border-bottom: 1px solid var(--border); gap: 8px; }
       .task:last-child { border-bottom: 0; }
-      .pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--pill); color: var(--muted); }
+      .task .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+      .task .title { word-break: break-word; }
+      .pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--pill); color: var(--muted); white-space: nowrap; }
       .pill.high { background: var(--pill-hi); color: var(--pill-hi-fg); }
       .muted { color: var(--muted); font-size: 13px; }
       .hidden { display: none; }
+
       nav { display: flex; gap: 8px; margin-bottom: 16px; }
-      nav button { background: transparent; border: 1px solid var(--border); color: var(--fg); }
+      nav button { background: transparent; border: 1px solid var(--border); color: var(--fg); flex: 1; }
       nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
       #msg { min-height: 18px; color: var(--pill-hi-fg); font-size: 13px; margin-bottom: 8px; }
       .badge { font-size: 11px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
       .badge.ai { color: #34d399; border-color: rgba(52,211,153,.4); }
       pre.review { white-space: pre-wrap; word-break: break-word; background: rgba(0,0,0,.15);
-        border-radius: 10px; padding: 12px; max-height: 320px; overflow: auto; }
+        border-radius: 10px; padding: 12px; max-height: 320px; overflow: auto; margin: 0; }
+      .skel { color: var(--muted); opacity: .7; }
+
+      /* ---------- 移动端打磨 ---------- */
+      @media (max-width: 560px) {
+        .wrap { padding: 16px 14px calc(92px + var(--safe-bottom)); max-width: 100%; }
+        header { flex-wrap: wrap; }
+        h1 { font-size: 17px; }
+        header .row { width: 100%; justify-content: space-between; }
+        header #who { font-size: 12px; }
+
+        /* 顶部导航 → 底部固定标签栏（含安全区） */
+        nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+          margin: 0; padding: 8px 12px calc(8px + var(--safe-bottom));
+          background: var(--card); backdrop-filter: blur(16px);
+          border-top: 1px solid var(--border);
+          display: flex; gap: 6px; }
+        nav button { flex-direction: column; gap: 2px; padding: 8px 4px; font-size: 12px;
+          min-height: 0; border-radius: 12px; }
+
+        /* 新增任务行：纵向堆叠，全宽 */
+        #tasks .row:first-child { flex-direction: column; align-items: stretch; }
+        #tasks .row:first-child > * { width: 100%; }
+        #tasks .row:first-child select { width: 100% !important; }
+
+        /* 任务条目：纵向，按钮全宽 */
+        .task { flex-direction: column; align-items: stretch; }
+        .task > button { width: 100%; }
+
+        .glass { padding: 14px; }
+      }
     </style>
   </head>
   <body>
@@ -82,6 +139,8 @@
           <select id="newPriority" style="width:auto">
             <option value="high">高</option><option value="medium" selected>中</option><option value="low">低</option>
           </select>
+          <input id="newDue" type="date" title="截止日期" style="width:auto" />
+          <input id="newDuration" type="number" min="0" inputmode="numeric" placeholder="时长(分)" title="预计时长(分钟)" style="width:120px" />
           <button id="addBtn">添加</button>
         </div>
         <div class="row" style="gap:8px;margin-bottom:8px">

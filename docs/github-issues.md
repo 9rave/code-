@@ -11,9 +11,9 @@
 | 2 | [推送] 在企业微信真实群验证 Markdown 子集渲染 | area: push | §9.4 | ✅ 代码已加 `sanitizeWeComMarkdown` + 真实来源标签；运行期真群验证待部署后 |
 | 3 | [安全] 速率限制改为 KV/D1 跨实例实现 | area: security | §7.5 | ✅ 已改为 D1 固定窗口（`0002_rate_limits.sql`） |
 | 4 | [AI] 持久化每日手动 AI 生成计数 | area: ai | §4.5 | ✅ 已落地（`countManualAiToday` + `recordAiUsage`） |
-| 5 | [前端] 完善移动端页面 | area: frontend | §10 | 🟡 已加主题切换/复盘/设置面板，细节待打磨 |
+| 5 | [前端] 完善移动端页面 | area: frontend | §10 | ✅ 底部固定标签栏+安全区适配+16px防缩放+44px触达尺寸+任务截止日期/时长录入 |
 | 6 | [运维] 实现导出与备份脚本 | area: infra | §13.3 / §14.3 | ✅ 已加 `scripts/export.ts` + `scripts/migrate.ts` |
-| 7 | [测试] 补充集成与安全测试 | area: testing | §13 | 🟡 已扩单测（限流/脱敏/密码策略），集成测试待活动 Worker |
+| 7 | [测试] 补充集成与安全测试 | area: testing | §13 | ✅ 已落地 32 例 Miniflare+D1 集成测试（tests/integration），全量 59 例通过 |
 | 8 | [部署] 多环境（local/staging/prod）配置管理 | area: infra | §12.1 | ✅ 已加 `wrangler.jsonc` `env` 块 |
 | 9 | [监控] 接入关键指标告警 | area: infra | §15.1 | ⬜ 文档化，待部署后 Cloudflare 面板配置 |
 | 10 | [AI] MVP4 预留 Gemini/Groq/DeepSeek 适配器 | area: ai | §4.1 / §16 | ⬜ MVP4 阶段 |

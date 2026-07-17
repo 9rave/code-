@@ -72,15 +72,23 @@ async function loadMe() {
 
 // ---------- 任务 ----------
 async function loadTasks(view) {
-  const { data } = await api("/api/tasks?view=" + view);
   const list = $("list");
+  list.innerHTML = '<p class="muted skel">加载中…</p>';
+  const { data } = await api("/api/tasks?view=" + view);
   list.innerHTML = "";
   if (!data.items.length) { list.innerHTML = '<p class="muted">暂无任务</p>'; return; }
   for (const t of data.items) {
     const div = document.createElement("div");
     div.className = "task";
     const pill = t.priority === "high" ? '<span class="pill high">高</span>' : '<span class="pill">' + t.priority + "</span>";
-    div.innerHTML = `<span>${escapeHtml(t.title)} ${pill}</span>`;
+    const extra = [];
+    if (t.dueDate) extra.push("截止 " + escapeHtml(t.dueDate));
+    if (t.estimatedDurationMinutes) extra.push("约 " + t.estimatedDurationMinutes + " 分");
+    const extraHtml = extra.length ? '<span class="muted">' + extra.join(" · ") + "</span>" : "";
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML = '<span class="title">' + escapeHtml(t.title) + "</span>" + pill + extraHtml;
+    div.appendChild(meta);
     if (t.status !== "completed") {
       const btn = document.createElement("button");
       btn.textContent = "完成";
@@ -93,9 +101,14 @@ async function loadTasks(view) {
 $("addBtn").onclick = async () => {
   const title = $("newTitle").value.trim();
   if (!title) return msg("标题不能为空");
+  const dueDate = $("newDue").value || undefined;
+  const estimatedDurationMinutes = $("newDuration").value ? Number($("newDuration").value) : undefined;
   try {
-    await api("/api/tasks", { method: "POST", body: JSON.stringify({ title, priority: $("newPriority").value }) });
-    $("newTitle").value = "";
+    await api("/api/tasks", {
+      method: "POST",
+      body: JSON.stringify({ title, priority: $("newPriority").value, dueDate, estimatedDurationMinutes }),
+    });
+    $("newTitle").value = ""; $("newDue").value = ""; $("newDuration").value = "";
     const active = document.querySelector("[data-view].active")?.dataset.view || "today";
     loadTasks(active);
   } catch (e) { msg(e.message); }
