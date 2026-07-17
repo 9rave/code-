@@ -11,6 +11,8 @@ coverage/
 .env
 .env.*
 *.local
+# GitHub App 私钥与配置（授权机制，严禁提交）
+.secrets/
 
 # 日志
 *.log
