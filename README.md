@@ -26,9 +26,10 @@ INITIAL_ADMIN_USERNAME=admin INITIAL_ADMIN_PASSWORD='你的强密码' npm run se
 # 4. 本地开发
 npm run dev
 
-# 5. 自测（类型检查 + 单元测试）
+# 5. 自测（类型检查 + 单元测试 + 集成测试）
 npm run typecheck
-npm test
+npm test                                   # 单元测试（27 用例）
+npm run test -- tests/integration          # 集成测试：Miniflare + 真实 D1（32 用例）
 
 # 6. 上线（多环境）
 npm run deploy                     # 默认环境
@@ -52,7 +53,7 @@ src/
   utils/              # time / errors / id / logger
   types/              # 共享类型
 public/               # 静态前端（极简起步版）
-tests/                # 单元测试
+tests/                # 单元测试 + 集成测试（tests/integration：Miniflare + 真实 D1）
 ```
 
 ## 环境变量（wrangler.jsonc → vars）
@@ -68,6 +69,7 @@ tests/                # 单元测试
 `SESSION_SECRET` · `WECOM_WEBHOOK_URL`（仅启用第三方 Provider 时才加其 Key）
 
 ## 仓库与协作
+- **目标远程仓库**：已确认 `https://github.com/9rave/code-` 为 `9rave` 名下的公开仓库（默认分支 `main`）。本地仓库当前尚未配置 remote；首次推送可执行 `git remote add origin https://github.com/9rave/code-.git && git push -u origin develop`。
 - **分支策略**：轻量 Git Flow —— `main`（生产/受保护）↔ `develop`（集成）↔ `feature/*`（开发）↔ `hotfix/*`（紧急修复）。详见 [`docs/BRANCHING.md`](docs/BRANCHING.md)。
 - **贡献流程**：从 `develop` 切 `feature` 分支 → 自测 → PR 回 `develop`（需 CI 通过 + Review）。见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
 - **CI**：`.github/workflows/ci.yml` 在 PR/推送 `main`、`develop` 时自动跑 `npm run typecheck` 与 `npm test`。

@@ -59,12 +59,14 @@ export async function sendPush(
     return;
   }
 
-  let attempt = 1;
+  let attempt = 0;
   let success = false;
   let httpStatus: number | null = null;
   let resp = "";
 
-  while (attempt <= 3) {
+  // 最多重试 3 次；attempt 记录真实发起次数（成功/业务拒绝时即本次，连续失败为 3）
+  while (attempt < 3) {
+    attempt++;
     try {
       const res = await fetch(env.WECOM_WEBHOOK_URL, {
         method: "POST",
@@ -83,8 +85,7 @@ export async function sendPush(
       success = true;
       break;
     } catch {
-      attempt++;
-      if (attempt > 3) break;
+      if (attempt >= 3) break;
       await new Promise((r) => setTimeout(r, 500 * attempt));
     }
   }

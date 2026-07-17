@@ -31,10 +31,27 @@
 | tests/sanitize.test.ts | 企微 Markdown 护栏 + 白名单 + 敏感词脱敏（新增，ADR-005） |
 | tests/password-policy.test.ts | 密码策略 ≥12 位/3 类（新增，ADR-004） |
 
+## 2.1 集成测试（新增）
+- 命令：`npm run test -- tests/integration`
+- 机制：**Miniflare + 真实 D1（workerd SQLite）**，直接驱动 Worker 的 `fetch`/`scheduled` 处理器，无数据库 Mock。每个用例重置 schema（DROP + 重放迁移）保证隔离。`vitest.config.ts` 关闭文件并行（`fileParallelism:false`）并放宽超时以容纳 workerd 启动与推送重试。
+- 结果：**5 文件 / 32 用例全部通过**（全量 `npm test` 共 59 用例通过）。
+
+| 文件 | 覆盖的业务流（正常 + 异常） |
+|---|---|
+| tests/integration/auth.test.ts | 登录成功/失败、登录限流 429+Retry-After、未登录 401、改密（成功/错密码/弱密码）、**改密后旧会话失效**、登出清 Cookie |
+| tests/integration/tasks.test.ts | 任务 CRUD、camelCase 契约落库、校验拒绝（空标题/非法优先级/非法日期/超范围时长）、按业务日期视图（today/overdue/unscheduled/completed/week）、跨用户隔离 |
+| tests/integration/reviews.test.ts | 规则复盘生成与落库、启用 AI 时走 Workers AI 并记 ai_usage、AI 异常回退规则引擎（degraded）、手动 AI 日限额拦截、每日日志 upsert/get、日期范围列举与非法日期拒绝 |
+| tests/integration/push.test.ts | 测试推送成功写 push_logs、幂等（同日同类型仅一次 webhook）、HTTP 500 重试 3 次后记失败、业务错误（errcode≠0）不重试、未配置 Webhook 返回 502 |
+| tests/integration/cron.test.ts | 三个 Cron 表达式正确分发到 morning/evening/weekly 任务，验证「任务→复盘→推送」协作；无用户时优雅跳过；未知 Cron 空跑 |
+
+- 集成测试中发现并修复的两个问题：
+  1. **会话失效未生效（安全）**：`verifySession` 未校验 `session_version`，`bumpSessionVersion` 改密后旧 Token 仍可用。`requireUser` 现比对库中 `session_version`，旧会话立即失效。
+  2. **推送重试计数偏差**：`sendPush` 在 3 次失败后 `attempt_count` 记为 4。已改为记录真实发起次数（成功/业务拒绝=本次，连续失败=3）。
+
 ## 3. 质量门禁（CI）
 `.github/workflows/ci.yml` 在 PR 与 push 到 `main`/`develop` 时自动 `typecheck` + `test`，守住"文档—代码一致"与"密钥不入库"。
 
 ## 4. 待补（非阻塞）
-- [ ] 集成测试：用 Miniflare + 真实 D1 本地实例验证登录/Cron/推送（需活动 Worker，本轮以单测覆盖核心纯逻辑）。
-- [ ] 安全测试：Cookie 标志、登录限流端到端、提示词注入（单测已覆盖白名单与脱敏，端到端待补）。
+- [x] 集成测试：Miniflare + 真实 D1 验证登录/Cron/推送（本轮已补全，32 用例）。
+- [ ] 安全测试：Cookie 标志端到端、提示词注入端到端（单测已覆盖白名单与脱敏）。
 - [ ] 真群企微 Markdown 渲染核验（部署后人工验证，#2 运行期项）。

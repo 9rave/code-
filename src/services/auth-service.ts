@@ -35,6 +35,11 @@ export async function requireUser(env: Env, req: Request): Promise<SessionPayloa
   const cookies = parseCookies(req.headers.get("cookie"));
   const payload = await verifySession(cookies["session"], env.SESSION_SECRET);
   if (!payload) throw new HttpError(STATUS.AUTH_REQUIRED, "AUTH_REQUIRED", "未登录或会话已失效");
+  // 会话版本校验：改密后 session_version 递增，旧 Token 立即失效（见 ADR 会话失效）
+  const user = await q.getUserById(env.DB, payload.sub);
+  if (!user || user.session_version !== payload.sessionVersion) {
+    throw new HttpError(STATUS.AUTH_REQUIRED, "AUTH_REQUIRED", "会话已失效，请重新登录");
+  }
   return payload;
 }
 
