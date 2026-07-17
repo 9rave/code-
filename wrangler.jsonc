@@ -7,6 +7,11 @@
     "AI_PROVIDER": "workers_ai",
     // 默认模型 ID（启用 AI 前须在 Cloudflare 控制台核实当前可用模型，见文档附录 C / ADR-002）
     "AI_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    // MVP4 适配器默认模型（仅当 AI_PROVIDER 切到对应 provider 且配置密钥后生效）
+    "GEMINI_MODEL": "gemini-1.5-flash",
+    "GROQ_MODEL": "llama-3.3-70b-versatile",
+    "DEEPSEEK_MODEL": "deepseek-chat",
+    // 敏感密钥（GEMINI_API_KEY / GROQ_API_KEY / DEEPSEEK_API_KEY）请用 `wrangler secret put` 注入，勿写此处
     "BUSINESS_TIMEZONE": "Asia/Shanghai",
     "AI_TIMEOUT_MS": "10000",
     "AI_MAX_OUTPUT_TOKENS": "400",
@@ -36,6 +41,9 @@
         "AI_ENABLED": "true",
         "AI_PROVIDER": "workers_ai",
         "AI_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        "GEMINI_MODEL": "gemini-1.5-flash",
+        "GROQ_MODEL": "llama-3.3-70b-versatile",
+        "DEEPSEEK_MODEL": "deepseek-chat",
         "BUSINESS_TIMEZONE": "Asia/Shanghai",
         "AI_TIMEOUT_MS": "10000",
         "AI_MAX_OUTPUT_TOKENS": "400",
@@ -50,6 +58,9 @@
         "AI_ENABLED": "false",
         "AI_PROVIDER": "workers_ai",
         "AI_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        "GEMINI_MODEL": "gemini-1.5-flash",
+        "GROQ_MODEL": "llama-3.3-70b-versatile",
+        "DEEPSEEK_MODEL": "deepseek-chat",
         "BUSINESS_TIMEZONE": "Asia/Shanghai",
         "AI_TIMEOUT_MS": "10000",
         "AI_MAX_OUTPUT_TOKENS": "400",

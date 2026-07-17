@@ -106,6 +106,13 @@ export interface Env {
   AI_ENABLED: string;
   AI_PROVIDER: string;
   AI_MODEL: string;
+  // MVP4 适配器密钥（敏感，请用 `wrangler secret put` 注入，勿写入 vars / 仓库）
+  GEMINI_API_KEY?: string;
+  GEMINI_MODEL?: string;
+  GROQ_API_KEY?: string;
+  GROQ_MODEL?: string;
+  DEEPSEEK_API_KEY?: string;
+  DEEPSEEK_MODEL?: string;
   BUSINESS_TIMEZONE: string;
   AI_TIMEOUT_MS: string;
   AI_MAX_OUTPUT_TOKENS: string;
