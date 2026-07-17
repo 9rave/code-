@@ -27,6 +27,13 @@
   "ai": {
     "binding": "AI"
   },
+  // 静态前端托管：Workers Assets 把 public/ 目录暴露为 env.ASSETS，
+  // src/index.ts:69 在未命中 API 路由时通过 env.ASSETS.fetch(req) 回退到静态资源。
+  // 缺此绑定则 public/ 前端（含 #5 移动端页面）上线后全部 404。
+  "assets": {
+    "directory": "public",
+    "binding": "ASSETS"
+  },
   "triggers": {
     "crons": [
       "30 0 * * 1-5",
