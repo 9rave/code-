@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
     "export": "tsx scripts/export.ts",
+    "healthcheck": "node scripts/healthcheck.mjs",
     "test": "vitest run"
   },
   "devDependencies": {

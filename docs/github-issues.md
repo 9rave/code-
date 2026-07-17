@@ -15,7 +15,7 @@
 | 6 | [运维] 实现导出与备份脚本 | area: infra | §13.3 / §14.3 | ✅ 已加 `scripts/export.ts` + `scripts/migrate.ts` |
 | 7 | [测试] 补充集成与安全测试 | area: testing | §13 | ✅ 已落地 32 例 Miniflare+D1 集成测试（tests/integration），全量 59 例通过 |
 | 8 | [部署] 多环境（local/staging/prod）配置管理 | area: infra | §12.1 | ✅ 已加 `wrangler.jsonc` `env` 块 |
-| 9 | [监控] 接入关键指标告警 | area: infra | §15.1 | ⬜ 文档化，待部署后 Cloudflare 面板配置 |
+| 9 | [监控] 接入关键指标告警 | area: infra | §15.1 | ✅ 已落地 `docs/MONITORING.md`（平台告警+B1~B6 业务派生告警）+ `scripts/healthcheck.mjs` 可运行巡检 |
 | 10 | [AI] MVP4 预留 Gemini/Groq/DeepSeek 适配器 | area: ai | §4.1 / §16 | ⬜ MVP4 阶段 |
 | 11 | [质量] 增加文档—代码一致性巡检 | docs | 全局 | ✅ 本轮已对齐（模型 ID/限流/环境） |
 | 12 | [安全] Seed 首账号的密码策略与密钥分发 | area: security | §7.1 | ✅ 已加 `validatePasswordPolicy` + 密钥分发说明 |
