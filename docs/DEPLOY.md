@@ -30,7 +30,7 @@
 ### 1.1 代码与质量
 - [ ] `npm ci` 已安装依赖（项目 `node_modules/.bin/wrangler` 存在）
 - [ ] `npm run typecheck` 零错误（`tsc --noEmit`）
-- [ ] `npm test` 全绿（单元 27 + 集成 32 = 59；若含 MVP4 适配器则 76）
+- [ ] `npm test` 全绿（单元 27 + 集成 32 = 59；若含 MVP4 适配器则 77，含 PBKDF2 上限断言）
 - [ ] `npm run dev` 本地冒烟：能登录、能建任务、能触发 test-push
 
 ### 1.2 Cloudflare 账号与凭据
@@ -194,7 +194,8 @@ npx wrangler secret put SESSION_SECRET --env production
 | 前端根路径 404 / 白屏 | `assets` 绑定缺失或 `public/` 缺 `index.html` | 确认 `wrangler.jsonc` 有 `assets` 块；`public/index.html` 存在；重新 `wrangler deploy` |
 | `/app.js` 等静态资源 404 | 资源路径不匹配 | 确认前端用相对/绝对根路径；`assets.directory=public` 已配 |
 | `npm run migrate` 失败 | SQL 语法 / 迁移非幂等 | 本地 `wrangler d1 execute --local` 复现；检查 `0001/0002` 幂等 |
-| 登录接口 500 | `SESSION_SECRET` 缺失 | `wrangler secret list` 确认已注入；本地 `.dev.vars` 复现 |
+| 登录接口 500（日志 `NotSupportedError: Pbkdf2 failed: iteration counts above 100000 are not supported`） | `src/security/password.ts` 的 PBKDF2 迭代次数 > 100000（Cloudflare Workers Web Crypto 上限） | 把 `ITERATIONS` 降到 ≤ 100000；并重设管理员密码（verifyPassword 用全局常量重新哈希，旧哈希不匹配）；`tests/password.test.ts` 已加断言守护 |
+| 登录接口 500（无上述 Pbkdf2 报错） | `SESSION_SECRET` 缺失 | `wrangler secret list` 确认已注入；本地 `.dev.vars` 复现 |
 | 推送失败 / 企微无消息 | `WECOM_WEBHOOK_URL` 错或群机器人被踢 | 查 `push_logs`；跑 `settings/test-push`；healthcheck 业务告警 B1 |
 | Cron 没按时触发 | `triggers.crons` 未注册或时区错 | 面板 Cron Triggers 页确认 3 条；核对 `BUSINESS_TIMEZONE` |
 | AI 调用失败 / 自动降级 | 模型 ID 失效或 key 缺失 | 查 `ai_usage`；healthcheck B3/B4；控制台核实 `AI_MODEL` 可用性 |

@@ -1,7 +1,7 @@
 // 密码哈希：Web Crypto PBKDF2-SHA256（见开发指南 §7.2）
 // Workers 与 Node 20+ 均提供全局 crypto.subtle。盐 ≥16 字节，派生 32 字节。
 
-const ITERATIONS = 120_000; // 部署环境压测后可在 password_params 中版本化
+const ITERATIONS = 100_000; // Cloudflare Workers 的 Web Crypto 上限为 100000（高于此值抛 NotSupportedError）
 const KEY_BITS = 256;
 const SALT_BYTES = 16;
 

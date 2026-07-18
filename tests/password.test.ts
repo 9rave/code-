@@ -23,4 +23,11 @@ describe("password (PBKDF2-SHA256)", () => {
   it("参数版本化输出非空", () => {
     expect(passwordParams()).toContain("pbkdf2-sha256");
   });
+
+  it("迭代次数不超过 Cloudflare Workers Web Crypto 上限(100000)，否则部署后登录抛 NotSupportedError", () => {
+    const m = passwordParams().match(/pbkdf2-sha256\|(\d+)\|/);
+    expect(m).not.toBeNull();
+    const iters = Number(m![1]);
+    expect(iters).toBeLessThanOrEqual(100_000);
+  });
 });
