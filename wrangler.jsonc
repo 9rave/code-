@@ -21,7 +21,7 @@
     {
       "binding": "DB",
       "database_name": "ai-todo",
-      "database_id": "<replace-with-d1-id>"
+      "database_id": "b6e24d99-aba1-4ab4-a5a8-c0746d02be33"
     }
   ],
   "ai": {
@@ -56,9 +56,13 @@
         "AI_MAX_OUTPUT_TOKENS": "400",
         "AI_DAILY_MANUAL_LIMIT": "5"
       },
+      "workers_dev": true,
       "d1_databases": [
         { "binding": "DB", "database_name": "ai-todo-staging", "database_id": "<replace-with-staging-d1-id>" }
-      ]
+      ],
+      "ai": {
+        "binding": "AI"
+      }
     },
     "production": {
       "vars": {
@@ -73,9 +77,13 @@
         "AI_MAX_OUTPUT_TOKENS": "400",
         "AI_DAILY_MANUAL_LIMIT": "5"
       },
+      "workers_dev": true,
       "d1_databases": [
-        { "binding": "DB", "database_name": "ai-todo", "database_id": "<replace-with-prod-d1-id>" }
-      ]
+        { "binding": "DB", "database_name": "ai-todo", "database_id": "b6e24d99-aba1-4ab4-a5a8-c0746d02be33" }
+      ],
+      "ai": {
+        "binding": "AI"
+      }
     }
   }
 }
