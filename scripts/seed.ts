@@ -3,6 +3,9 @@
 import { execSync } from "node:child_process";
 import { hashPassword, generateSalt, passwordParams, validatePasswordPolicy } from "../src/security/password";
 
+// 默认写本地 D1；部署生产库时传 --remote 或 D1_REMOTE=1（见 docs/DEPLOY.md）
+const REMOTE = process.argv.includes("--remote") || process.env.D1_REMOTE === "1" ? " --remote" : "";
+
 async function main() {
   const username = process.env.INITIAL_ADMIN_USERNAME || "admin";
   const password = process.env.INITIAL_ADMIN_PASSWORD;
@@ -27,7 +30,7 @@ async function main() {
     `VALUES ('${crypto.randomUUID()}', '${esc(username)}', '${esc(hash)}', '${esc(salt)}', '${esc(params)}', '${now}', '${now}') ` +
     `ON CONFLICT(username) DO NOTHING;`;
 
-  execSync(`npx wrangler d1 execute ai-todo --command="${sql}"`, { stdio: "inherit" });
+  execSync(`npx wrangler d1 execute ai-todo${REMOTE} --command="${sql}"`, { stdio: "inherit" });
   console.log(`已尝试 Seed 用户 "${username}"（若已存在则跳过）。首次登录需强制改密。`);
 }
 
