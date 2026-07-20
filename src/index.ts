@@ -41,6 +41,10 @@ export default {
         const u = await guard(env, req);
         return taskRoutes.list(req, env, u);
       }
+      if (path === "/api/statistics" && method === "GET") {
+        const u = await guard(env, req);
+        return taskRoutes.statistics(req, env, u);
+      }
       if (path === "/api/tasks" && method === "POST") {
         const u = await guard(env, req);
         return taskRoutes.create(req, env, u);

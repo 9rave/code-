@@ -6,178 +6,412 @@
     <meta name="theme-color" content="#0f1115" />
     <title>AI Todo 助手</title>
     <style>
+      /* ============================================================
+         UI Design System（规范 §5：统一颜色/字体/按钮/Checkbox/Card/Drawer/Chart）
+         ============================================================ */
       :root {
-        --bg: #0f1115; --fg: #e6e6e6; --card: rgba(255,255,255,0.04);
-        --border: rgba(255,255,255,0.10); --muted: #8b95a5; --accent: #3b82f6;
-        --pill: #222732; --pill-hi: #3a1d1d; --pill-hi-fg: #ff8a8a;
+        /* 颜色 */
+        --bg: #0f1115; --fg: #e8eaed; --card: rgba(255,255,255,0.045);
+        --card-2: rgba(255,255,255,0.07);
+        --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.18);
+        --muted: #8b95a5; --accent: #3b82f6; --accent-2: #8b5cf6;
+        --accent-grad: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        --success: #34d399; --warning: #fbbf24; --danger: #f87171;
+        --pill: #222732; --pill-fg: #9aa6b8;
+        --hi-bg: rgba(248,113,113,0.14); --hi-fg: #ff9a9a;
+        --md-bg: rgba(251,191,36,0.14); --md-fg: #ffd27a;
         --safe-bottom: env(safe-area-inset-bottom, 0px);
+        /* 字体 */
+        --font: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+        --fs-xs: 12px; --fs-sm: 13px; --fs-base: 15px; --fs-lg: 18px; --fs-xl: 22px; --fs-2xl: 28px;
+        /* 间距 / 圆角 / 阴影 */
+        --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 28px;
+        --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 22px;
+        --shadow: 0 8px 30px rgba(0,0,0,0.35);
+        --ease: cubic-bezier(0.16, 1, 0.3, 1);
       }
       :root[data-theme="light"] {
-        --bg: #f4f6fb; --fg: #1a1f29; --card: rgba(255,255,255,0.7);
-        --border: rgba(20,30,50,0.12); --muted: #5b6573; --accent: #2563eb;
-        --pill: #e7ebf3; --pill-hi: #fbe3e3; --pill-hi-fg: #c0392b;
+        --bg: #f3f5fa; --fg: #1a1f29; --card: rgba(255,255,255,0.75);
+        --card-2: #ffffff; --border: rgba(20,30,50,0.12); --border-strong: rgba(20,30,50,0.22);
+        --muted: #5b6573; --accent: #2563eb; --accent-2: #7c3aed;
+        --accent-grad: linear-gradient(90deg, #2563eb, #7c3aed);
+        --pill: #e7ebf3; --pill-fg: #4b5563;
+        --hi-bg: #fde8e8; --hi-fg: #c0392b;
+        --md-bg: #fef3da; --md-fg: #b7791f;
+        --shadow: 0 8px 30px rgba(20,30,50,0.12);
       }
       * { box-sizing: border-box; }
       html, body { -webkit-text-size-adjust: 100%; }
-      body { font-family: system-ui, -apple-system, "PingFang SC", sans-serif; margin: 0;
-        background: var(--bg); color: var(--fg); transition: background .3s, color .3s; line-height: 1.5; }
+      body { font-family: var(--font); font-size: var(--fs-base); margin: 0;
+        background: var(--bg); color: var(--fg); line-height: 1.5;
+        transition: background .3s var(--ease), color .3s var(--ease); }
 
-      .wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 48px; }
+      /* ---------- 基础组件 ---------- */
+      h1,h2,h3 { margin: 0; font-weight: 700; letter-spacing: .2px; }
+      .gradient-text { background: var(--accent-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+      .muted { color: var(--muted); font-size: var(--fs-sm); }
+      .hidden { display: none !important; }
 
-      header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
-      h1 { font-size: 18px; margin: 0; letter-spacing: .3px;
-        background: linear-gradient(90deg, var(--accent), #8b5cf6);
-        -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-
-      .glass { background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-        padding: 16px; margin-bottom: 16px; backdrop-filter: blur(14px);
-        transition: border-color .2s, transform .15s ease; }
-
-      /* 16px base on form controls → 防止 iOS 聚焦自动放大 */
-      input, button, textarea, select { font: inherit; font-size: 16px; padding: 10px 12px;
-        border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--fg);
-        min-height: 44px; transition: transform .12s ease, background .2s, border-color .2s, filter .2s; }
+      input, textarea, select { font: inherit; font-size: 16px; /* 16px 防 iOS 聚焦放大 */
+        padding: 9px 12px; border-radius: var(--r-sm); border: 1px solid var(--border);
+        background: var(--bg); color: var(--fg); min-height: 42px; width: 100%;
+        transition: border-color .2s, background .2s, box-shadow .2s; }
+      input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.18); }
       input::placeholder, textarea::placeholder { color: var(--muted); }
-      button { background: var(--accent); border: 0; color: #fff; cursor: pointer; font-weight: 600;
-        display: inline-flex; align-items: center; justify-content: center; }
-      button:active { transform: scale(.96); }
-      button.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); font-weight: 500; }
-      button:disabled { opacity: .55; cursor: not-allowed; }
-      @media (hover: hover) {
-        button:hover:not(:disabled) { filter: brightness(1.08); }
-        nav button:hover { border-color: var(--accent); }
-        .glass:hover { border-color: rgba(59,130,246,.35); }
-      }
 
-      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-      .task { display: flex; justify-content: space-between; align-items: center; padding: 12px 0;
-        border-bottom: 1px solid var(--border); gap: 8px; }
-      .task:last-child { border-bottom: 0; }
-      .task .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
-      .task .title { word-break: break-word; }
-      .pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--pill); color: var(--muted); white-space: nowrap; }
-      .pill.high { background: var(--pill-hi); color: var(--pill-hi-fg); }
-      .muted { color: var(--muted); font-size: 13px; }
-      .hidden { display: none; }
+      /* 按钮（规范 §5 Button） */
+      .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
+        padding: 9px 16px; border-radius: var(--r-sm); border: 1px solid transparent;
+        background: var(--accent); color: #fff; min-height: 42px;
+        transition: transform .12s var(--ease), filter .2s, background .2s, border-color .2s; }
+      .btn:hover:not(:disabled) { filter: brightness(1.08); }
+      .btn:active:not(:disabled) { transform: scale(.96); }
+      .btn:disabled { opacity: .55; cursor: not-allowed; }
+      .btn.ghost { background: transparent; border-color: var(--border); color: var(--fg); font-weight: 500; }
+      .btn.ghost:hover:not(:disabled) { border-color: var(--accent); }
+      .btn.sm { padding: 6px 12px; min-height: 34px; font-size: var(--fs-xs); }
+      .btn.danger { background: var(--danger); }
+      .btn.success { background: var(--success); color: #052e1a; }
+      @media (hover: none) { .btn:hover:not(:disabled) { filter: none; } }
 
-      nav { display: flex; gap: 8px; margin-bottom: 16px; }
-      nav button { background: transparent; border: 1px solid var(--border); color: var(--fg); flex: 1; }
-      nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+      /* Card（规范 §5 Card） */
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-lg);
+        padding: var(--sp-4); backdrop-filter: blur(14px);
+        transition: border-color .2s, transform .15s var(--ease); }
+      .card.hover:hover { border-color: rgba(59,130,246,.35); }
 
-      #msg { min-height: 18px; color: var(--pill-hi-fg); font-size: 13px; margin-bottom: 8px; }
-      .badge { font-size: 11px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
-      .badge.ai { color: #34d399; border-color: rgba(52,211,153,.4); }
-      pre.review { white-space: pre-wrap; word-break: break-word; background: rgba(0,0,0,.15);
-        border-radius: 10px; padding: 12px; max-height: 320px; overflow: auto; margin: 0; }
-      .skel { color: var(--muted); opacity: .7; }
+      /* Checkbox（规范 §5 Checkbox） */
+      .checkbox { appearance: none; -webkit-appearance: none; width: 22px; height: 22px; min-height: 22px;
+        border: 2px solid var(--border-strong); border-radius: 7px; cursor: pointer; position: relative;
+        flex: 0 0 auto; background: var(--bg); transition: border-color .2s, background .2s; }
+      .checkbox:checked { background: var(--accent); border-color: var(--accent); }
+      .checkbox:checked::after { content: ""; position: absolute; left: 6px; top: 2px; width: 6px; height: 11px;
+        border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
 
-      /* ---------- 移动端打磨 ---------- */
-      @media (max-width: 560px) {
-        .wrap { padding: 16px 14px calc(92px + var(--safe-bottom)); max-width: 100%; }
-        header { flex-wrap: wrap; }
-        h1 { font-size: 17px; }
-        header .row { width: 100%; justify-content: space-between; }
-        header #who { font-size: 12px; }
+      /* Pills / Badges */
+      .pill { font-size: var(--fs-xs); padding: 2px 9px; border-radius: 999px; background: var(--pill); color: var(--pill-fg); white-space: nowrap; }
+      .pill.high { background: var(--hi-bg); color: var(--hi-fg); }
+      .pill.medium { background: var(--md-bg); color: var(--md-fg); }
+      .badge { font-size: var(--fs-xs); padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+      .badge.ai { color: var(--success); border-color: rgba(52,211,153,.4); }
 
-        /* 顶部导航 → 底部固定标签栏（含安全区） */
-        nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-          margin: 0; padding: 8px 12px calc(8px + var(--safe-bottom));
-          background: var(--card); backdrop-filter: blur(16px);
-          border-top: 1px solid var(--border);
-          display: flex; gap: 6px; }
-        nav button { flex-direction: column; gap: 2px; padding: 8px 4px; font-size: 12px;
-          min-height: 0; border-radius: 12px; }
+      /* Drawer（规范 §5 Drawer，右侧任务详情） */
+      .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); opacity: 0; visibility: hidden;
+        transition: opacity .25s var(--ease), visibility .25s; z-index: 40; }
+      .drawer-backdrop.open { opacity: 1; visibility: visible; }
+      .drawer { position: fixed; top: 0; right: 0; height: 100%; width: 420px; max-width: 92vw; z-index: 50;
+        background: var(--bg); border-left: 1px solid var(--border); box-shadow: var(--shadow);
+        transform: translateX(100%); transition: transform .3s var(--ease); display: flex; flex-direction: column; }
+      .drawer.open { transform: translateX(0); }
+      .drawer header { display: flex; justify-content: space-between; align-items: center; padding: var(--sp-4); border-bottom: 1px solid var(--border); }
+      .drawer .body { padding: var(--sp-4); overflow-y: auto; flex: 1; }
+      .drawer footer { padding: var(--sp-4); border-top: 1px solid var(--border); display: flex; gap: 8px; }
 
-        /* 新增任务行：纵向堆叠，全宽 */
-        #tasks .row:first-child { flex-direction: column; align-items: stretch; }
-        #tasks .row:first-child > * { width: 100%; }
-        #tasks .row:first-child select { width: 100% !important; }
+      /* Toast（规范 §6 消息提醒） */
+      #toast-wrap { position: fixed; top: 16px; right: 16px; z-index: 60; display: flex; flex-direction: column; gap: 8px; max-width: 340px; }
+      .toast { background: var(--card-2); border: 1px solid var(--border); border-radius: var(--r-md);
+        padding: 10px 14px; font-size: var(--fs-sm); box-shadow: var(--shadow);
+        animation: toastIn .3s var(--ease); display: flex; gap: 8px; align-items: center; }
+      .toast.ok { border-left: 3px solid var(--success); }
+      .toast.err { border-left: 3px solid var(--danger); }
+      .toast.info { border-left: 3px solid var(--accent); }
+      @keyframes toastIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+      .toast.out { animation: toastOut .3s var(--ease) forwards; }
+      @keyframes toastOut { to { opacity: 0; transform: translateX(20px); } }
 
-        /* 任务条目：纵向，按钮全宽 */
-        .task { flex-direction: column; align-items: stretch; }
-        .task > button { width: 100%; }
+      /* Chart（规范 §5 Chart — 纯 CSS 条形） */
+      .bars { display: flex; flex-direction: column; gap: 10px; }
+      .bar-row { display: grid; grid-template-columns: 64px 1fr 38px; align-items: center; gap: 10px; font-size: var(--fs-sm); }
+      .bar-track { background: var(--card-2); border-radius: 999px; height: 10px; overflow: hidden; }
+      .bar-fill { height: 100%; border-radius: 999px; background: var(--accent-grad); transition: width .6s var(--ease); }
+      .bar-fill.high { background: linear-gradient(90deg, #f87171, #fb7185); }
+      .bar-fill.medium { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+      .bar-fill.low { background: linear-gradient(90deg, #34d399, #10b981); }
 
-        .glass { padding: 14px; }
+      /* ============================================================
+         布局（规范 §3 首页布局：顶部工具栏 / 左侧分类 / 中间 / 右侧详情）
+         ============================================================ */
+      .topbar { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-5);
+        border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20;
+        background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(14px); }
+      .topbar h1 { font-size: var(--fs-xl); }
+      .topbar .spacer { flex: 1; }
+      .topbar .who { font-size: var(--fs-sm); color: var(--muted); }
+      .bell { position: relative; }
+      .bell .dot { position: absolute; top: -3px; right: -3px; min-width: 16px; height: 16px; padding: 0 4px;
+        background: var(--danger); color: #fff; border-radius: 999px; font-size: 10px; display: flex; align-items: center; justify-content: center; }
+
+      .layout { display: grid; grid-template-columns: 232px 1fr; align-items: start; max-width: 1180px; margin: 0 auto; }
+      .sidebar { padding: var(--sp-5) var(--sp-4); position: sticky; top: 64px; }
+      .sidebar .nav-group { display: flex; flex-direction: column; gap: 4px; }
+      .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-md);
+        cursor: pointer; color: var(--fg); font-size: var(--fs-base); border: 1px solid transparent;
+        transition: background .15s, border-color .15s; text-align: left; background: transparent; width: 100%; }
+      .nav-item:hover { background: var(--card); }
+      .nav-item.active { background: var(--card-2); border-color: var(--border-strong); font-weight: 600; }
+      .nav-item .ic { width: 20px; text-align: center; opacity: .85; }
+      .nav-label { font-size: 11px; color: var(--muted); margin: 14px 4px 6px; text-transform: uppercase; letter-spacing: .08em; }
+
+      .main { padding: var(--sp-5); min-width: 0; }
+      .view-head { display: flex; align-items: center; gap: 12px; margin-bottom: var(--sp-4); flex-wrap: wrap; }
+      .view-head h2 { font-size: var(--fs-2xl); }
+      .view-head .spacer { flex: 1; }
+
+      /* 工具栏（搜索 / 筛选 / 视图切换） */
+      .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: var(--sp-4); }
+      .toolbar .grow { flex: 1; min-width: 160px; }
+      .seg { display: inline-flex; background: var(--card); border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
+      .seg button { background: transparent; border: 0; color: var(--muted); padding: 8px 14px; cursor: pointer; font: inherit; font-size: var(--fs-sm); }
+      .seg button.active { background: var(--accent); color: #fff; }
+
+      /* KPI 卡片网格 */
+      .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+      .kpi { padding: var(--sp-4); border-radius: var(--r-lg); background: var(--card); border: 1px solid var(--border); }
+      .kpi .n { font-size: var(--fs-2xl); font-weight: 800; line-height: 1.1; }
+      .kpi .l { font-size: var(--fs-sm); color: var(--muted); margin-top: 4px; }
+      .kpi.accent .n { background: var(--accent-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+      /* 任务列表项 */
+      .task { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: var(--r-md);
+        border: 1px solid var(--border); background: var(--card); margin-bottom: 8px; cursor: pointer;
+        transition: border-color .15s, transform .12s var(--ease), background .15s; }
+      .task:hover { border-color: var(--accent); }
+      .task.done { opacity: .6; }
+      .task.done .title { text-decoration: line-through; }
+      .task .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+      .task .title { font-weight: 600; word-break: break-word; }
+      .task .sub { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+      .tag { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--card-2); border: 1px solid var(--border); color: var(--pill-fg); }
+
+      /* Kanban */
+      .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sp-4); }
+      .col { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--sp-3); min-height: 200px; transition: border-color .2s, background .2s; }
+      .col.drag-over { border-color: var(--accent); background: var(--card-2); }
+      .col h3 { font-size: var(--fs-base); margin-bottom: 10px; display: flex; justify-content: space-between; }
+      .col .count { color: var(--muted); font-weight: 500; }
+      .kanban-card { background: var(--card-2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 10px 12px; margin-bottom: 8px; cursor: grab; }
+      .kanban-card:active { cursor: grabbing; }
+      .kanban-card.dragging { opacity: .4; }
+
+      /* Calendar */
+      .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+      .cal-dow { text-align: center; font-size: var(--fs-xs); color: var(--muted); padding: 4px 0; }
+      .cal-cell { aspect-ratio: 1 / 1; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 6px;
+        font-size: var(--fs-sm); display: flex; flex-direction: column; gap: 3px; cursor: pointer; background: var(--card); transition: border-color .15s; }
+      .cal-cell:hover { border-color: var(--accent); }
+      .cal-cell.muted { opacity: .35; }
+      .cal-cell.today { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59,130,246,.2); }
+      .cal-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
+      .cal-dot.over { background: var(--danger); }
+      .cal-dot.done { background: var(--success); }
+
+      .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+
+      /* 移动端：底部标签栏（保留原打磨） */
+      .mobile-tabs { display: none; }
+      @media (max-width: 860px) {
+        .layout { grid-template-columns: 1fr; }
+        .sidebar { display: none; }
+        .main { padding: var(--sp-4); padding-bottom: calc(84px + var(--safe-bottom)); }
+        .topbar { padding: var(--sp-3); }
+        .topbar h1 { font-size: var(--fs-lg); }
+        .mobile-tabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+          padding: 6px 8px calc(6px + var(--safe-bottom)); gap: 4px; background: color-mix(in srgb, var(--bg) 85%, transparent);
+          backdrop-filter: blur(16px); border-top: 1px solid var(--border); }
+        .mobile-tabs button { flex: 1; flex-direction: column; gap: 2px; padding: 7px 2px; font-size: 11px;
+          min-height: 0; border-radius: var(--r-md); background: transparent; border: 0; color: var(--muted); cursor: pointer; }
+        .mobile-tabs button.active { color: var(--accent); }
+        .mobile-tabs .ic { font-size: 17px; }
+        .drawer { width: 100%; max-width: 100%; }
+        .topbar .who { display: none; }
       }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <header>
-        <h1>AI Todo 助手</h1>
-        <div class="row">
-          <select id="theme" title="主题" style="width:auto">
-            <option value="system">跟随系统</option>
-            <option value="light">浅色</option>
-            <option value="dark">深色</option>
-          </select>
-          <span id="who" class="muted"></span>
-          <button class="ghost" id="logoutBtn">退出</button>
-        </div>
-      </header>
+    <div id="toast-wrap"></div>
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
 
-      <nav>
-        <button data-tab="tasks" class="active">今日任务</button>
-        <button data-tab="review">复盘</button>
-        <button data-tab="settings">设置</button>
-      </nav>
+    <!-- 顶部工具栏（规范 §3） -->
+    <header class="topbar">
+      <h1 class="gradient-text">AI Todo 助手</h1>
+      <div class="spacer"></div>
+      <span class="who" id="who"></span>
+      <button class="btn ghost sm bell" id="bellBtn" title="消息提醒">🔔<span class="dot hidden" id="bellDot">0</span></button>
+      <select id="theme" title="主题" style="width:auto; min-height:38px">
+        <option value="system">跟随系统</option>
+        <option value="light">浅色</option>
+        <option value="dark">深色</option>
+      </select>
+      <button class="btn ghost sm" id="logoutBtn">退出</button>
+    </header>
 
-      <div id="msg"></div>
+    <div class="layout">
+      <!-- 左侧分类（规范 §3 信息架构） -->
+      <aside class="sidebar">
+        <nav class="nav-group" id="sideNav">
+          <button class="nav-item" data-view="dashboard"><span class="ic">🏠</span> Dashboard</button>
+          <button class="nav-item" data-view="today"><span class="ic">📌</span> 今日任务</button>
+          <button class="nav-item" data-view="upcoming"><span class="ic">📅</span> 本周 / Upcoming</button>
+          <button class="nav-item" data-view="kanban"><span class="ic">🗂️</span> 看板 Kanban</button>
+          <button class="nav-item" data-view="calendar"><span class="ic">🗓️</span> 日历 Calendar</button>
+          <button class="nav-item" data-view="statistics"><span class="ic">📊</span> 统计 Statistics</button>
+          <div class="nav-label">其他</div>
+          <button class="nav-item" data-view="review"><span class="ic">🤖</span> 复盘 Review</button>
+          <button class="nav-item" data-view="settings"><span class="ic">⚙️</span> 设置 Settings</button>
+        </nav>
+      </aside>
 
-      <!-- 登录 -->
-      <section id="login" class="glass hidden">
-        <h2 style="margin-top:0">登录</h2>
-        <div class="row" style="margin-bottom:8px"><input id="username" placeholder="用户名" autocomplete="username" /></div>
-        <div class="row" style="margin-bottom:8px"><input id="password" type="password" placeholder="密码" autocomplete="current-password" /></div>
-        <button id="loginBtn">登录</button>
-      </section>
+      <!-- 中间内容区 -->
+      <main class="main">
+        <!-- 登录 -->
+        <section id="login" class="card hidden">
+          <h2 style="margin-bottom:12px">登录</h2>
+          <div style="margin-bottom:8px"><input id="username" placeholder="用户名" autocomplete="username" /></div>
+          <div style="margin-bottom:12px"><input id="password" type="password" placeholder="密码" autocomplete="current-password" /></div>
+          <button class="btn" id="loginBtn">登录</button>
+        </section>
 
-      <!-- 任务 -->
-      <section id="tasks" class="glass hidden">
-        <div class="row" style="margin-bottom:12px">
-          <input id="newTitle" placeholder="新任务标题（必填）" style="flex:1" />
-          <select id="newPriority" style="width:auto">
-            <option value="high">高</option><option value="medium" selected>中</option><option value="low">低</option>
-          </select>
-          <input id="newDue" type="date" title="截止日期" style="width:auto" />
-          <input id="newDuration" type="number" min="0" inputmode="numeric" placeholder="时长(分)" title="预计时长(分钟)" style="width:120px" />
-          <button id="addBtn">添加</button>
-        </div>
-        <div class="row" style="gap:8px;margin-bottom:8px">
-          <button class="ghost" data-view="today">今日</button>
-          <button class="ghost" data-view="overdue">逾期</button>
-          <button class="ghost" data-view="week">本周</button>
-          <button class="ghost" data-view="completed">已完成</button>
-        </div>
-        <div id="list"></div>
-        <p class="muted" id="mode"></p>
-      </section>
+        <!-- Dashboard -->
+        <section id="dashboard" class="view hidden">
+          <div class="view-head"><h2>Dashboard</h2><span class="spacer"></span>
+            <button class="btn ghost sm" id="dashRefresh">刷新</button></div>
+          <div class="kpi-grid" id="kpiGrid"></div>
+          <div class="card hover" style="margin-bottom:16px">
+            <h3 style="margin-bottom:10px; font-size:var(--fs-lg)">快速新增</h3>
+            <div class="toolbar">
+              <input id="qTitle" class="grow" placeholder="新任务标题（必填）" />
+              <select id="qPriority" style="width:auto">
+                <option value="high">高</option><option value="medium" selected>中</option><option value="low">低</option>
+              </select>
+              <input id="qDue" type="date" style="width:auto" />
+              <input id="qDuration" type="number" min="0" inputmode="numeric" placeholder="时长(分)" style="width:110px" />
+            </div>
+            <div class="toolbar">
+              <input id="qTags" class="grow" placeholder="标签（逗号分隔，如 工作,紧急）" />
+              <button class="btn" id="qAdd">添加</button>
+            </div>
+          </div>
+          <div class="card"><h3 style="margin-bottom:10px; font-size:var(--fs-lg)">消息提醒</h3>
+            <div id="reminderBox"><p class="muted">加载中…</p></div>
+          </div>
+        </section>
 
-      <!-- 复盘 -->
-      <section id="review" class="glass hidden">
-        <div class="row" style="gap:8px;margin-bottom:12px">
-          <button class="ghost" data-rtype="morning">早报</button>
-          <button class="ghost" data-rtype="evening">晚报</button>
-          <button class="ghost" data-rtype="weekly">周报</button>
-          <button id="regenBtn">重新生成</button>
-        </div>
-        <div id="reviewBox"><p class="muted">选择类型查看复盘。</p></div>
-      </section>
+        <!-- 今日 / 本周（列表 + 看板切换，规范 §4） -->
+        <section id="tasks" class="view hidden">
+          <div class="view-head"><h2 id="tasksTitle">今日任务</h2><span class="spacer"></span>
+            <div class="seg" id="tasksMode">
+              <button data-mode="list" class="active">列表</button>
+              <button data-mode="kanban">看板</button>
+            </div>
+          </div>
+          <div class="toolbar">
+            <input id="search" class="grow" placeholder="🔍 搜索标题…" />
+            <select id="fPriority" style="width:auto">
+              <option value="">全部优先级</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option>
+            </select>
+            <select id="fTag" style="width:auto"><option value="">全部标签</option></select>
+            <div class="seg" id="tasksView">
+              <button data-v="today" class="active">今日</button>
+              <button data-v="overdue">逾期</button>
+              <button data-v="week">本周</button>
+              <button data-v="completed">已完成</button>
+              <button data-v="unscheduled">未排期</button>
+            </div>
+          </div>
+          <div id="tasksBody"></div>
+        </section>
 
-      <!-- 设置 -->
-      <section id="settings" class="glass hidden">
-        <p id="statusLine" class="muted">加载中…</p>
-        <div class="row" style="margin:12px 0">
-          <button id="testPushBtn">发送测试推送</button>
-          <span id="pushMsg" class="muted"></span>
-        </div>
-        <hr style="border-color:var(--border)" />
-        <h3 style="margin:8px 0">修改密码</h3>
-        <div class="row" style="margin-bottom:8px"><input id="curPwd" type="password" placeholder="当前密码" /></div>
-        <div class="row" style="margin-bottom:8px"><input id="newPwd" type="password" placeholder="新密码（≥12位，含3类字符）" style="flex:1" /></div>
-        <button id="chgPwdBtn">保存新密码</button>
-      </section>
+        <!-- 看板（独立页，规范 §2/§4 拖拽） -->
+        <section id="kanban" class="view hidden">
+          <div class="view-head"><h2>看板 Kanban</h2><span class="spacer"></span>
+            <span class="muted">拖拽卡片到「已完成」即可标记完成（列内顺序不持久化）</span></div>
+          <div class="board" id="board"></div>
+        </section>
+
+        <!-- 日历（规范 §2 Calendar） -->
+        <section id="calendar" class="view hidden">
+          <div class="view-head"><h2>日历 Calendar</h2><span class="spacer"></span>
+            <button class="btn ghost sm" id="calPrev">‹</button>
+            <span id="calLabel" style="min-width:120px; text-align:center"></span>
+            <button class="btn ghost sm" id="calNext">›</button>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="card" style="margin-top:16px"><h3 style="margin-bottom:10px; font-size:var(--fs-lg)" id="calDayTitle">当日任务</h3>
+            <div id="calDayTasks"><p class="muted">选择日期查看任务。</p></div></div>
+        </section>
+
+        <!-- 统计（规范 §1/§2 Statistics，§6 自动刷新） -->
+        <section id="statistics" class="view hidden">
+          <div class="view-head"><h2>统计 Statistics</h2><span class="spacer"></span>
+            <span class="muted" id="statAuto">每 30 秒自动刷新</span>
+            <button class="btn ghost sm" id="statRefresh">刷新</button></div>
+          <div class="kpi-grid" id="statKpi"></div>
+          <div class="card hover" style="margin-bottom:16px">
+            <h3 style="margin-bottom:12px; font-size:var(--fs-lg)">状态分布</h3>
+            <div class="bars" id="statStatus"></div>
+          </div>
+          <div class="card hover">
+            <h3 style="margin-bottom:12px; font-size:var(--fs-lg)">优先级分布</h3>
+            <div class="bars" id="statPriority"></div>
+          </div>
+        </section>
+
+        <!-- 复盘 -->
+        <section id="review" class="view hidden">
+          <div class="view-head"><h2>复盘 Review</h2></div>
+          <div class="toolbar">
+            <button class="btn ghost" data-rtype="morning">早报</button>
+            <button class="btn ghost" data-rtype="evening">晚报</button>
+            <button class="btn ghost" data-rtype="weekly">周报</button>
+            <button class="btn" id="regenBtn">重新生成</button>
+          </div>
+          <div class="card"><div id="reviewBox"><p class="muted">选择类型查看复盘。</p></div></div>
+        </section>
+
+        <!-- 设置 -->
+        <section id="settings" class="view hidden">
+          <div class="view-head"><h2>设置 Settings</h2></div>
+          <div class="card" style="margin-bottom:16px">
+            <p id="statusLine" class="muted">加载中…</p>
+            <div class="toolbar" style="margin-top:12px">
+              <button class="btn" id="testPushBtn">发送测试推送</button>
+              <span id="pushMsg" class="muted"></span>
+            </div>
+          </div>
+          <div class="card">
+            <h3 style="margin-bottom:10px; font-size:var(--fs-lg)">修改密码</h3>
+            <div style="margin-bottom:8px"><input id="curPwd" type="password" placeholder="当前密码" /></div>
+            <div style="margin-bottom:12px"><input id="newPwd" type="password" placeholder="新密码（≥12位，含3类字符）" /></div>
+            <button class="btn" id="chgPwdBtn">保存新密码</button>
+          </div>
+        </section>
+      </main>
     </div>
+
+    <!-- 右侧任务详情 Drawer（规范 §3/§5） -->
+    <aside class="drawer" id="detail">
+      <header>
+        <h3>任务详情</h3>
+        <button class="btn ghost sm" id="detailClose">✕</button>
+      </header>
+      <div class="body" id="detailBody"></div>
+      <footer>
+        <button class="btn success sm" id="detailSave">保存</button>
+        <button class="btn danger sm" id="detailDelete">删除</button>
+      </footer>
+    </aside>
+
+    <!-- 移动端底部标签栏 -->
+    <nav class="mobile-tabs" id="mobileTabs">
+      <button data-view="dashboard"><span class="ic">🏠</span>主页</button>
+      <button data-view="today"><span class="ic">📌</span>今日</button>
+      <button data-view="kanban"><span class="ic">🗂️</span>看板</button>
+      <button data-view="calendar"><span class="ic">🗓️</span>日历</button>
+      <button data-view="statistics"><span class="ic">📊</span>统计</button>
+      <button data-view="settings"><span class="ic">⚙️</span>设置</button>
+    </nav>
+
     <script src="/app.js"></script>
   </body>
 </html>

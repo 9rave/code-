@@ -3,6 +3,8 @@ import type { Env, SessionPayload } from "../types";
 import { json, ok, HttpError } from "../utils/errors";
 import { requestId } from "../utils/id";
 import * as taskSvc from "../services/task-service";
+import * as q from "../db/queries";
+import { businessDate } from "../utils/time";
 
 export async function list(req: Request, env: Env, user: SessionPayload): Promise<Response> {
   const reqId = requestId();
@@ -56,6 +58,17 @@ export async function complete(_req: Request, env: Env, user: SessionPayload, id
   const reqId = requestId();
   try {
     return json(ok(await taskSvc.completeTask(env, id, user.sub)));
+  } catch (e) {
+    return err(e, reqId);
+  }
+}
+
+// ---------- 统计（UI/UX 规范「统计」页 + Dashboard KPI） ----------
+export async function statistics(_req: Request, env: Env, user: SessionPayload): Promise<Response> {
+  const reqId = requestId();
+  try {
+    const data = await q.getStatistics(env.DB, user.sub, businessDate());
+    return json(ok(data));
   } catch (e) {
     return err(e, reqId);
   }

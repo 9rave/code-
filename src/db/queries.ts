@@ -365,6 +365,44 @@ export async function recordAiUsage(
 }
 
 // ---------- 统计（供规则/AI 复盘使用） ----------
+export interface Statistics {
+  total: number;
+  completed: number;
+  pending: number;
+  overdue: number;
+  highPriority: number;
+  byStatus: { pending: number; completed: number };
+  byPriority: { high: number; medium: number; low: number };
+}
+
+// UI/UX 规范「统计」页 + Dashboard KPI 用的聚合（只读，跨状态/优先级分组）
+export async function getStatistics(db: DB, userId: string, bd: string): Promise<Statistics> {
+  const rows = (await db
+    .prepare(
+      `SELECT status, priority, due_date, COUNT(*) AS c FROM tasks
+       WHERE user_id = ? AND deleted_at IS NULL
+       GROUP BY status, priority, due_date`
+    )
+    .bind(userId)
+    .all()).results ?? [];
+  let total = 0, completed = 0, pending = 0, overdue = 0, highPriority = 0;
+  const byStatus = { pending: 0, completed: 0 };
+  const byPriority = { high: 0, medium: 0, low: 0 };
+  for (const r of rows as any[]) {
+    const c = Number(r.c);
+    total += c;
+    byStatus[r.status as "pending" | "completed"] += c;
+    if (r.status === "completed") completed += c;
+    if (r.status === "pending") {
+      pending += c;
+      byPriority[r.priority as "high" | "medium" | "low"] += c;
+      if (r.priority === "high") highPriority += c;
+      if (r.due_date && r.due_date < bd) overdue += c;
+    }
+  }
+  return { total, completed, pending, overdue, highPriority, byStatus, byPriority };
+}
+
 export async function getDayStats(db: DB, userId: string, bd: string): Promise<{ total: number; completed: number; pending: number; overdue: number; highPriority: number }> {
   const rows = await db
     .prepare(
