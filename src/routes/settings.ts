@@ -43,8 +43,8 @@ export async function status(_req: Request, env: Env, user: SessionPayload): Pro
 export async function testPushRoute(_req: Request, env: Env, user: SessionPayload): Promise<Response> {
   const reqId = requestId();
   try {
-    await testPush(env, user.sub, reqId);
-    return json(ok({ pushed: true }));
+    const outcome = await testPush(env, user.sub, reqId);
+    return json(ok({ pushed: outcome.delivered, skipped: outcome.skipped, reason: outcome.reason ?? null }));
   } catch (e) {
     return err(e, reqId);
   }

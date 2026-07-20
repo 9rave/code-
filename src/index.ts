@@ -76,7 +76,8 @@ export default {
       if (path === "/api/push-tasks" && method === "POST") return pushTaskRoutes.createPushTaskRoute(req, env, await guard(env, req));
       const mpt = path.match(/^\/api\/push-tasks\/([^/]+)$/);
       if (mpt && method === "GET") return pushTaskRoutes.getPushTaskRoute(req, env, await guard(env, req), mpt[1]);
-      if (mpt && method === "PUT") return pushTaskRoutes.updatePushTaskRoute(req, env, await guard(env, req), mpt[1]);
+      // 同时支持 PATCH(部分更新，REST 惯例) 与 PUT(前端当前用法)，避免更新 404
+      if (mpt && (method === "PATCH" || method === "PUT")) return pushTaskRoutes.updatePushTaskRoute(req, env, await guard(env, req), mpt[1]);
       if (mpt && method === "DELETE") return pushTaskRoutes.deletePushTaskRoute(req, env, await guard(env, req), mpt[1]);
       if (path === "/api/bot-config" && method === "GET") return pushTaskRoutes.getBotConfigRoute(req, env, await guard(env, req));
       if (path === "/api/bot-config" && method === "PUT") return pushTaskRoutes.setBotConfigRoute(req, env, await guard(env, req));

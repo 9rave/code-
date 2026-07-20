@@ -19,9 +19,14 @@ export async function listPushTasksRoute(_req: Request, env: Env, _user: Session
 }
 
 export async function getPushTaskRoute(_req: Request, env: Env, _user: SessionPayload, id: string): Promise<Response> {
-  const t = await q.getPushTask(env.DB, id);
-  if (!t) throw new HttpError(STATUS.NOT_FOUND, "NOT_FOUND", "任务不存在");
-  return json(ok({ item: t }));
+  const reqId = requestId();
+  try {
+    const t = await q.getPushTask(env.DB, id);
+    if (!t) throw new HttpError(STATUS.NOT_FOUND, "NOT_FOUND", "任务不存在");
+    return json(ok({ item: t }));
+  } catch (e) {
+    return err(e, reqId);
+  }
 }
 
 export async function createPushTaskRoute(req: Request, env: Env, _user: SessionPayload): Promise<Response> {

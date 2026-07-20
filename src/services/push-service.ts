@@ -116,6 +116,14 @@ export function renderTemplate(template: string, ctx: Record<string, string>): s
 //   - 4xx（客户端错误，如无效 topic / 鉴权失败）→ 非重试（业务拒绝）
 //   - 5xx / 网络异常 → 重试，最多 3 次
 // scope 用于幂等键：内置任务用 type，自定义任务用任务 id（避免多任务同日互相覆盖）。
+
+// 单次推送结果：区分「真的送达」与「因幂等/无配置而跳过」，便于 UI 如实反馈
+export interface PushOutcome {
+  delivered: boolean;
+  skipped: boolean;
+  reason?: "no_config" | "idempotent" | "failed";
+}
+
 export async function sendPush(
   env: Env,
   userId: string,
@@ -123,7 +131,7 @@ export async function sendPush(
   content: string,
   reqId: string,
   scope?: string
-): Promise<void> {
+): Promise<PushOutcome> {
   const bd = businessDate();
   const idemScope = scope ?? type;
   const idempotencyKey = `${userId}:${bd}:${idemScope}`;
@@ -132,12 +140,12 @@ export async function sendPush(
   // 未配置 webhook：静默跳过（cron 推送不记录失败，避免无谓噪声）
   if (!url) {
     log("info", "push_skipped_no_config", { type, idemScope }, reqId);
-    return;
+    return { delivered: false, skipped: true, reason: "no_config" };
   }
 
   if (await q.pushLogExists(env.DB, idempotencyKey)) {
     log("info", "push_skipped", { type, idempotencyKey }, reqId);
-    return;
+    return { delivered: false, skipped: true, reason: "idempotent" };
   }
 
   let attempt = 0;
@@ -173,11 +181,12 @@ export async function sendPush(
   if (!success) {
     log("error", "push_failed", { type, httpStatus, idempotencyKey }, reqId);
   }
+  return { delivered: success, skipped: false, reason: success ? undefined : "failed" };
 }
 
-export async function testPush(env: Env, userId: string, reqId: string): Promise<void> {
+export async function testPush(env: Env, userId: string, reqId: string): Promise<PushOutcome> {
   if (!(await resolveNotifyUrl(env))) {
     throw new HttpError(STATUS.PUSH_FAILED, "PUSH_FAILED", "未配置推送 Webhook（NOTIFY_WEBHOOK_URL 或 bot_config.webhook_url）");
   }
-  await sendPush(env, userId, "test", renderTest(), reqId);
+  return sendPush(env, userId, "test", renderTest(), reqId);
 }

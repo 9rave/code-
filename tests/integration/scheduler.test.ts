@@ -102,6 +102,26 @@ describe("scheduler + push_tasks integration", () => {
 
     const del = await call(env, makeCtx().ctx, "DELETE", `/api/push-tasks/${id}`, { cookie });
     expect(del.json.data.deleted).toBe(true);
+
+    // 回归：删除后按 id 获取应返回 404（而非 500）
+    const missing = await call(env, makeCtx().ctx, "GET", `/api/push-tasks/${id}`, { cookie });
+    expect(missing.status).toBe(404);
+  });
+
+  it("回归：PATCH /api/push-tasks/:id 必须路由到更新逻辑（此前仅注册 PUT，导致 PATCH 静默 404）", async () => {
+    const create = await call(env, makeCtx().ctx, "POST", "/api/push-tasks", {
+      cookie,
+      body: { name: "PATCH回归", scheduleCron: "0 9 * * *", template: "x" },
+    });
+    expect(create.status).toBe(201);
+    const id = create.json.data.item.id;
+
+    // PATCH 部分更新：此前返回 404，现应 200 并应用变更
+    const patchUpd = await call(env, makeCtx().ctx, "PATCH", `/api/push-tasks/${id}`, { cookie, body: { enabled: false } });
+    expect(patchUpd.status).toBe(200);
+    expect(patchUpd.json.data.item.enabled).toBe(false);
+
+    await call(env, makeCtx().ctx, "DELETE", `/api/push-tasks/${id}`, { cookie });
   });
 
   it("bot-config get/set via API", async () => {
