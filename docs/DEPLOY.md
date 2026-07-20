@@ -15,8 +15,8 @@
 | D1 绑定 | `DB`；默认/生产库名 `ai-todo`，staging 库名 `ai-todo-staging` |
 | AI 绑定 | `AI`（Workers AI，可选） |
 | 静态资源 | `assets.directory = public`，绑定名 `ASSETS`，由 `src/index.ts:69` 在未命中 API 路由时回退托管 |
-| Cron | `30 0 * * 1-5`（工作日早报）、`30 10 * * *`（晚报）、`45 10 * * 5`（周报），时区跟随 `BUSINESS_TIMEZONE=Asia/Shanghai` |
-| Secrets | `SESSION_SECRET`、`NOTIFY_WEBHOOK_URL`（ntfy 等通用推送 webhook；不配置则推送静默跳过。启用第三方 AI 时加 `GEMINI_API_KEY`/`GROQ_API_KEY`/`DEEPSEEK_API_KEY`） |
+| Cron | `30 0 * * 1-5`（工作日早报）、`30 10 * * *`（晚报）、`45 10 * * 5`（周报）、`* * * * *`（每分钟调度器，扫描 `push_tasks` 到期任务并推送），时区跟随 `BUSINESS_TIMEZONE=Asia/Shanghai` |
+| Secrets | `SESSION_SECRET`、`NOTIFY_WEBHOOK_URL`（通用推送 Webhook：ntfy / PushPlus / Server酱 / 自托管 ClawBot 微信桥；不配置则推送静默跳过；界面「机器人通道配置」可覆盖此值。启用第三方 AI 时加 `GEMINI_API_KEY`/`GROQ_API_KEY`/`DEEPSEEK_API_KEY`） |
 | 分支策略 | `main` 受保护，必须经 PR + CI；发布从 `develop` 走 PR 合入 `main` |
 
 > ⚠️ **staging / production 共用同一 Worker 名称**：当前 `wrangler.jsonc` 的 `env.staging` / `env.production` 未覆盖 `name`，因此 `wrangler deploy --env staging` 与 `--env production` 会**部署到同一个脚本 `ai-todo-assistant`**，互相覆盖。
@@ -28,10 +28,10 @@
 ## 1. 部署前置检查清单（Pre-deploy Checklist）
 
 ### 1.1 代码与质量
-- [ ] `npm ci` 已安装依赖（项目 `node_modules/.bin/wrangler` 存在）
+- [ ] `npm ci` 已安装依赖（项目 `node_modules/.bin/wrangler` 存在，**务必用本地 `./node_modules/.bin/wrangler`，勿用 `npx wrangler`——后者会拉取不兼容的 4.x 版本**
 - [ ] `npm run typecheck` 零错误（`tsc --noEmit`）
-- [ ] `npm test` 全绿（单元 27 + 集成 32 = 59；若含 MVP4 适配器则 77，含 PBKDF2 上限断言）
-- [ ] `npm run dev` 本地冒烟：能登录、能建任务、能触发 test-push
+- [ ] `npm test` 全绿（共 **93 用例 / 15 文件**：单元 + 集成 Miniflare+真实 D1）
+- [ ] `npm run dev` 本地冒烟：能登录、能建任务、能建定时推送任务、能触发 test-push（返回 `pushed/skipped` 如实状态）
 
 ### 1.2 Cloudflare 账号与凭据
 - [ ] 拥有目标 Cloudflare 账号，且 `wrangler whoami` 能返回账号信息
@@ -46,12 +46,12 @@
 
 ### 1.4 数据库与种子
 - [ ] 真实 D1 已创建（见 §2.2），`database_id` 已回填
-- [ ] 迁移已对真实库执行（`npm run migrate`），`0001_*` / `0002_*` 两张表 + 幂等约束就位
+- [ ] 迁移已对真实库执行（`npm run migrate -- --remote`），`0001_init.sql` / `0002_rate_limits.sql` / `0003_push_tasks.sql` / `0004_push_logs_custom.sql` 全部就位（含 `push_tasks`、`push_logs` 表与幂等约束）
 - [ ] 首管理员已 Seed（`INITIAL_ADMIN_USERNAME` + 强密码），且已知密码走安全通道分发
 
 ### 1.5 密钥与第三方
 - [ ] `SESSION_SECRET` 已 `wrangler secret put`（≥32 位高熵随机串，如 `openssl rand -base64 48`）
-- [ ] `NOTIFY_WEBHOOK_URL` 已 `wrangler secret put`（ntfy 话题 URL，如 `https://ntfy.sh/你的话题`；不配置则推送静默跳过）
+- [ ] `NOTIFY_WEBHOOK_URL` 已 `wrangler secret put`（通用推送 Webhook：自托管 ClawBot 桥 `https://<桥>/bots/<bot_id>/messages?token=<token>` / ntfy `https://ntfy.sh/<话题>` / PushPlus / Server酱；不配置则推送静默跳过；界面「机器人通道配置」可覆盖）
 - [ ] 若启用 AI：已在 Cloudflare 控制台核实 `AI_MODEL` 当前可用；第三方 Provider 的 key 已 secret put
 - [ ] `AI_ENABLED` 决策明确：默认 `false`（纯规则，零成本）；staging 可 `true`
 
@@ -89,25 +89,27 @@ npx wrangler d1 create ai-todo-staging --env staging
 
 ### 2.3 迁移（对真实 D1）
 ```bash
-# 默认/生产库
-npm run migrate
+# 默认/生产库（按序执行 0001~0004 全部迁移；幂等，可重复执行）
+npm run migrate -- --remote
 
-# 若 migrate 脚本未读 env，可手动逐文件：
-npx wrangler d1 execute ai-todo --file=src/db/migrations/0001_schema.sql
-npx wrangler d1 execute ai-todo --file=src/db/migrations/0002_rate_limits.sql
+# 等价手动逐文件：
+npx wrangler d1 execute ai-todo --remote --file=src/db/migrations/0001_init.sql
+npx wrangler d1 execute ai-todo --remote --file=src/db/migrations/0002_rate_limits.sql
+npx wrangler d1 execute ai-todo --remote --file=src/db/migrations/0003_push_tasks.sql
+npx wrangler d1 execute ai-todo --remote --file=src/db/migrations/0004_push_logs_custom.sql
 
 # staging（如用独立库）
-npx wrangler d1 execute ai-todo-staging --env staging --file=src/db/migrations/0001_schema.sql
-npx wrangler d1 execute ai-todo-staging --env staging --file=src/db/migrations/0002_rate_limits.sql
+npx wrangler d1 execute ai-todo-staging --env staging --remote --file=src/db/migrations/0001_init.sql
+# …其余迁移同理
 ```
 
 ### 2.4 Seed 首管理员
 ```bash
 INITIAL_ADMIN_USERNAME=admin \
 INITIAL_ADMIN_PASSWORD='替换为≥12位且含3类字符的强密码' \
-npm run seed
+npm run seed -- --remote
 ```
-> 密码经 `validatePasswordPolicy` 校验；首次登录会被强制改密。请通过口令管理器/当面告知，不入库、不进 Git、不写聊天记录。
+> 本地开发可省略 `-- --remote`（落到本地 D1）。密码经 `validatePasswordPolicy` 校验；首次登录会被强制改密。请通过口令管理器/当面告知，不入库、不进 Git、不写聊天记录。
 
 ### 2.5 注入 Secrets
 ```bash
@@ -115,8 +117,12 @@ npx wrangler secret put SESSION_SECRET
 # 粘贴：openssl rand -base64 48 的输出
 
 npx wrangler secret put NOTIFY_WEBHOOK_URL
-# 粘贴 ntfy 话题完整 URL，如 https://ntfy.sh/你的话题
-# （用户无企业微信账号，已改用 ntfy 通用 webhook；可选，不配则推送静默跳过）
+# 粘贴通用推送 Webhook 完整 URL：
+#   - 自托管 ClawBot 微信桥：https://<桥主机>/bots/<bot_id>/messages?token=<token>
+#   - ntfy：https://ntfy.sh/<话题>
+#   - PushPlus：https://www.pushplus.plus/send?token=<token>
+#   - Server酱：https://sctapi.ftqq.com/<token>.send
+# （免费微信推送见 docs/WECHAT-PUSH-SETUP.md；不配则推送静默跳过）
 
 # 仅在启用第三方 AI 时：
 # npx wrangler secret put GEMINI_API_KEY
@@ -141,9 +147,9 @@ npx wrangler deploy --env production
 1. 打开 Worker URL（Cloudflare 面板 → Workers & Pages → ai-todo-assistant → 触发器/URL）。
 2. 用 Seed 的账号登录，触发强制改密。
 3. 创建一个任务，标记完成，确认 API 正常。
-4. 在「设置」页点 **test-push**，确认企微群收到 Markdown 消息。
+4. 在「设置」页点 **test-push**，确认推送通道收到消息（返回 `pushed:true`；若当天已推送过则 `skipped:true` 属正常幂等行为）。
 5. 访问 `/`（根路径），确认移动端页面（`public/index.html` + `/app.js`）正常加载——验证 `assets` 绑定生效。
-6. 确认 Cron Triggers 已在面板注册（3 条），下次触发时间合理（Asia/Shanghai）。
+6. 确认 Cron Triggers 已在面板注册（**4 条**：3 条复盘 + 1 条每分钟调度器），下次触发时间合理（Asia/Shanghai）。
 7. 跑一次 `npm run healthcheck` 确认无异常。
 
 ### 2.8 代码入库
@@ -194,11 +200,12 @@ npx wrangler secret put SESSION_SECRET --env production
 | 部署报 D1 binding / `database_id` 无效 | 占位符未替换或 id 错 | 回填真实 id（§2.2）；`wrangler d1 list` 核对 id |
 | 前端根路径 404 / 白屏 | `assets` 绑定缺失或 `public/` 缺 `index.html` | 确认 `wrangler.jsonc` 有 `assets` 块；`public/index.html` 存在；重新 `wrangler deploy` |
 | `/app.js` 等静态资源 404 | 资源路径不匹配 | 确认前端用相对/绝对根路径；`assets.directory=public` 已配 |
-| `npm run migrate` 失败 | SQL 语法 / 迁移非幂等 | 本地 `wrangler d1 execute --local` 复现；检查 `0001/0002` 幂等 |
+| `npm run migrate` 失败 | SQL 语法 / 迁移非幂等 | 本地 `wrangler d1 execute --local` 复现；检查 `0001~0004` 幂等 |
 | 登录接口 500（日志 `NotSupportedError: Pbkdf2 failed: iteration counts above 100000 are not supported`） | `src/security/password.ts` 的 PBKDF2 迭代次数 > 100000（Cloudflare Workers Web Crypto 上限） | 把 `ITERATIONS` 降到 ≤ 100000；并重设管理员密码（verifyPassword 用全局常量重新哈希，旧哈希不匹配）；`tests/password.test.ts` 已加断言守护 |
 | 登录接口 500（无上述 Pbkdf2 报错） | `SESSION_SECRET` 缺失 | `wrangler secret list` 确认已注入；本地 `.dev.vars` 复现 |
-| 推送失败 / 手机无消息 | `NOTIFY_WEBHOOK_URL` 错或话题不存在（ntfy 返回 4xx） | 查 `push_logs`；跑 `settings/test-push`；确认 ntfy 话题 URL 正确且已订阅 |
-| Cron 没按时触发 | `triggers.crons` 未注册或时区错 | 面板 Cron Triggers 页确认 3 条；核对 `BUSINESS_TIMEZONE` |
+| 推送失败 / 手机无消息 | `NOTIFY_WEBHOOK_URL` 错或通道不可达（Webhook 返回 4xx/5xx） | 查 `push_logs`；跑 `settings/test-push` 看 `pushed/skipped/reason`；确认 Webhook URL 正确且已订阅/已上行 |
+| 定时推送任务不触发 | `push_tasks` 未启用 / cron `*` 调度器未注册 | 面板 Cron Triggers 页确认 **4 条**（含 `* * * * *`）；核对任务 `enabled=true` 与 `next_run_at`；查 `push_logs` |
+| Cron 没按时触发 | `triggers.crons` 未注册或时区错 | 面板 Cron Triggers 页确认 4 条；核对 `BUSINESS_TIMEZONE` |
 | AI 调用失败 / 自动降级 | 模型 ID 失效或 key 缺失 | 查 `ai_usage`；healthcheck B3/B4；控制台核实 `AI_MODEL` 可用性 |
 | 迁移后数据异常 | 破坏性变更 | 用 `exports/` 备份恢复；补补偿 SQL |
 | `wrangler deploy` 覆盖 staging | staging/prod 同名（见 §0） | 给 `env.staging` 设独立 `name`；或只用 `--env production` |

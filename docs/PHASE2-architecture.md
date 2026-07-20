@@ -24,9 +24,9 @@
 - **选择**：`validatePasswordPolicy(pw)`（≥12 位 + 含大小写/数字/符号中至少 3 类），在 `changePassword` 与 `seed.ts` 强制。初始密码经 `INITIAL_ADMIN_PASSWORD` 环境变量注入，**首次登录强制改密**。
 - **密钥分发**：README 明确"通过安全通道（口令管理器/当面）告知，不落库、不进 Git、不写聊天记录"。
 
-## ADR-005 · 企微 Markdown 子集校验 + 真实来源标签
-- **背景**：`renderMorning` 把"生成模式"写死为 `规则引擎 / AI 增强`；企微 Markdown 为受限子集，未做校验。
-- **选择**：新增 `sanitizeWeComMarkdown()`（剥离 `<>` HTML、控制字符、未支持语法），渲染函数接收 `source: 'rule'|'ai'` 显示真实模式。早报恒为 `rule`（早报 job 不调用 AI）；晚报/周报显示实际 `review.source`。
+## ADR-005 · 推送文本护栏 + 真实来源标签
+- **背景**：`renderMorning` 把"生成模式"写死为 `规则引擎 / AI 增强`；推送文本经通道无关处理，未做校验。
+- **选择**：新增 `sanitizeNotifyText()`（剥离 `<>` HTML、控制字符、未支持语法，通道无关），渲染函数接收 `source: 'rule'|'ai'` 显示真实模式。早报恒为 `rule`（早报 job 不调用 AI）；晚报/周报显示实际 `review.source`。
 - **理由**：状态准确 + 防止注入/渲染异常；保持降级语义（AI 失败不覆盖已有复盘）。
 
 ## ADR-006 · 多环境配置（wrangler `env`）

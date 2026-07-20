@@ -15,7 +15,7 @@
 > 个人/小团队可简化为：`main` + `develop` + `feature/*`，跳过 `release/*`。
 
 ## 命名规范
-- 功能分支：`feature/login-cookie-session`、`feature/wecom-push-retry`
+- 功能分支：`feature/login-cookie-session`、`feature/notify-push-retry`
 - 修复分支：`fix/d1-idempotency`、`hotfix/push-timeout`
 - 建议带上 Issue 编号：`feature/12-workers-ai-model-id`
 
@@ -28,7 +28,7 @@
 
 ## 提交信息（Conventional Commits）
 ```
-feat: 新增企微推送重试
+feat: 新增推送重试（2xx 成功 / 4xx 不重试 / 5xx 重试≤3）
 fix: 修正复盘幂等约束
 docs: 补充分支策略文档
 refactor: 抽离路由守卫
