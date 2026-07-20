@@ -74,8 +74,8 @@ describe("Cron job integration (jobs → review → push)", () => {
     expect(logs[0].push_type).toBe("morning");
     expect(logs[0].status).toBe("success");
     expect(webhook.calls).toHaveLength(1);
-    expect(webhook.calls[0].markdown).toContain("早报");
-    expect(webhook.calls[0].markdown).toContain("cron task");
+    expect(webhook.calls[0].message).toContain("早报");
+    expect(webhook.calls[0].message).toContain("cron task");
   });
 
   it("evening cron (30 10 * * *) generates a rule-based review and pushes it", async () => {
@@ -87,8 +87,8 @@ describe("Cron job integration (jobs → review → push)", () => {
     const logs = await pushLogs();
     expect(logs).toHaveLength(1);
     expect(logs[0].push_type).toBe("evening");
-    expect(webhook.calls[0].markdown).toContain("晚报");
-    expect(webhook.calls[0].markdown).toContain("规则引擎");
+    expect(webhook.calls[0].message).toContain("晚报");
+    expect(webhook.calls[0].message).toContain("规则引擎");
   });
 
   it("weekly cron (45 10 * * 5) generates a weekly review and pushes it", async () => {
@@ -100,7 +100,7 @@ describe("Cron job integration (jobs → review → push)", () => {
     const logs = await pushLogs();
     expect(logs).toHaveLength(1);
     expect(logs[0].push_type).toBe("weekly");
-    expect(webhook.calls[0].markdown).toContain("周报");
+    expect(webhook.calls[0].message).toContain("周报");
   });
 
   it("skips gracefully when there is no active user (no push, no error)", async () => {

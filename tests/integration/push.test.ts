@@ -17,7 +17,7 @@ import {
   type SeedUser,
 } from "./harness";
 
-describe("WeCom push integration (idempotency & retry)", () => {
+describe("Push notification integration (ntfy webhook: idempotency & retry)", () => {
   let db: D1Database;
   let env: Env;
   let user: SeedUser;
@@ -100,7 +100,7 @@ describe("WeCom push integration (idempotency & retry)", () => {
   });
 
   it("returns 502 PUSH_FAILED when the webhook is not configured", async () => {
-    env = makeEnv(db, { WECOM_WEBHOOK_URL: "" });
+    env = makeEnv(db, { NOTIFY_WEBHOOK_URL: "" });
     const r = await call(env, makeCtx().ctx, "POST", "/api/settings/test-push", { cookie });
     expect(r.status).toBe(502);
     expect(r.json.error.code).toBe("PUSH_FAILED");

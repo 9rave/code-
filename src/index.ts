@@ -10,7 +10,9 @@ import * as authRoutes from "./routes/auth";
 import * as taskRoutes from "./routes/tasks";
 import * as reviewRoutes from "./routes/reviews";
 import * as settingsRoutes from "./routes/settings";
+import * as pushTaskRoutes from "./routes/push-tasks";
 import { runMorning, runEvening, runWeekly } from "./jobs";
+import { runScheduler } from "./services/scheduler";
 
 async function guard(env: Env, req: Request) {
   return auth.requireUser(env, req);
@@ -69,6 +71,16 @@ export default {
       if (path === "/api/settings/status" && method === "GET") return settingsRoutes.status(req, env, await guard(env, req));
       if (path === "/api/settings/test-push" && method === "POST") return settingsRoutes.testPushRoute(req, env, await guard(env, req));
 
+      // ---- 推送任务 + 机器人配置 ----
+      if (path === "/api/push-tasks" && method === "GET") return pushTaskRoutes.listPushTasksRoute(req, env, await guard(env, req));
+      if (path === "/api/push-tasks" && method === "POST") return pushTaskRoutes.createPushTaskRoute(req, env, await guard(env, req));
+      const mpt = path.match(/^\/api\/push-tasks\/([^/]+)$/);
+      if (mpt && method === "GET") return pushTaskRoutes.getPushTaskRoute(req, env, await guard(env, req), mpt[1]);
+      if (mpt && method === "PUT") return pushTaskRoutes.updatePushTaskRoute(req, env, await guard(env, req), mpt[1]);
+      if (mpt && method === "DELETE") return pushTaskRoutes.deletePushTaskRoute(req, env, await guard(env, req), mpt[1]);
+      if (path === "/api/bot-config" && method === "GET") return pushTaskRoutes.getBotConfigRoute(req, env, await guard(env, req));
+      if (path === "/api/bot-config" && method === "PUT") return pushTaskRoutes.setBotConfigRoute(req, env, await guard(env, req));
+
       // ---- 静态前端（Workers Assets / Pages） ----
       if (env.ASSETS) return env.ASSETS.fetch(req);
 
@@ -83,6 +95,7 @@ export default {
       "30 0 * * 1-5": runMorning,
       "30 10 * * *": runEvening,
       "45 10 * * 5": runWeekly,
+      "* * * * *": runScheduler,
     };
     const h = handlers[event.cron];
     if (h) ctx.waitUntil(h(env));

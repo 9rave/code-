@@ -414,8 +414,10 @@ $("regenBtn").onclick = async () => {
 async function loadStatus() {
   try {
     const { data } = await api("/api/settings/status");
-    $("statusLine").textContent = `AI：${data.aiStatus} ｜ 今日手动生成：${data.manualGenerationsToday} ｜ 企业微信：${data.wecom}`;
+    $("statusLine").textContent = `AI：${data.aiStatus} ｜ 今日手动生成：${data.manualGenerationsToday} ｜ 推送通知：${data.notify}`;
   } catch {}
+  loadBotConfig();
+  loadPushTasks();
 }
 $("testPushBtn").onclick = async () => {
   $("pushMsg").textContent = "发送中…";
@@ -428,6 +430,103 @@ $("chgPwdBtn").onclick = async () => {
     $("curPwd").value = ""; $("newPwd").value = ""; toast("密码已更新，请重新登录", "ok"); await loadMe();
   } catch (e) { toast(e.message, "err"); }
 };
+
+// ---------- 通知推送：机器人通道 + 定时任务（规范 §推送任务系统） ----------
+async function loadBotConfig() {
+  try {
+    const { data } = await api("/api/bot-config");
+    $("botWebhook").value = data.webhookUrl || "";
+    if (data.provider) $("botProvider").value = data.provider === "clawbot" ? "clawbot" : data.provider;
+    const badge = $("botStatus");
+    if (data.status === "configured") {
+      badge.textContent = "已配置" + (data.managed ? "（界面托管）" : "（环境变量）");
+      badge.className = "badge ai";
+    } else {
+      badge.textContent = "未配置";
+      badge.className = "badge";
+    }
+  } catch {}
+}
+$("saveBotBtn").onclick = async () => {
+  try {
+    await api("/api/bot-config", { method: "PUT", body: JSON.stringify({ webhookUrl: $("botWebhook").value.trim(), provider: $("botProvider").value }) });
+    toast("推送通道已保存", "ok");
+    await loadBotConfig();
+  } catch (e) { toast(e.message, "err"); }
+};
+
+function taskStatusBadge(s) {
+  if (s === "success") return '<span class="badge ai">成功</span>';
+  if (s === "failed") return '<span class="badge" style="color:var(--danger);border-color:rgba(248,113,113,.4)">失败</span>';
+  return '<span class="badge">未运行</span>';
+}
+function pushTaskRowHtml(t) {
+  const next = t.nextRunAt ? new Date(t.nextRunAt).toLocaleString() : "—";
+  return `<div class="task" style="cursor:default">
+    <input type="checkbox" class="checkbox" data-toggle="${t.id}" ${t.enabled ? "checked" : ""} style="width:auto;min-height:auto" title="启用/停用" />
+    <div class="meta">
+      <div class="title">${escapeHtml(t.name)}</div>
+      <div class="sub">
+        <span class="tag" style="font-family:monospace">${escapeHtml(t.scheduleCron)}</span>
+        ${taskStatusBadge(t.lastStatus)}
+        <span class="muted">下次：${escapeHtml(next)}</span>
+      </div>
+    </div>
+    <button class="btn ghost sm" data-edit="${t.id}">编辑</button>
+    <button class="btn ghost sm danger" data-del="${t.id}">删除</button>
+  </div>`;
+}
+async function loadPushTasks() {
+  try {
+    const { data } = await api("/api/push-tasks");
+    const box = $("taskList");
+    if (!data.items.length) { box.innerHTML = '<p class="muted">暂无定时推送任务。</p>'; return; }
+    box.innerHTML = data.items.map(pushTaskRowHtml).join("");
+    box.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => editTask(b.dataset.edit)));
+    box.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => delTask(b.dataset.del)));
+    box.querySelectorAll("[data-toggle]").forEach((c) => (c.onchange = () => toggleTask(c.dataset.toggle, c.checked)));
+  } catch (e) {
+    $("taskList").innerHTML = '<p style="color:var(--danger)">加载失败：' + escapeHtml(e.message) + "</p>";
+  }
+}
+function resetTaskForm() {
+  $("ptId").value = ""; $("ptName").value = ""; $("ptCron").value = ""; $("ptTemplate").value = "";
+  $("ptEnabled").checked = true; $("ptMsg").textContent = "";
+}
+$("saveTaskBtn").onclick = async () => {
+  const id = $("ptId").value;
+  const body = { name: $("ptName").value.trim(), scheduleCron: $("ptCron").value.trim(), template: $("ptTemplate").value, enabled: $("ptEnabled").checked };
+  if (!body.name || !body.scheduleCron) { $("ptMsg").textContent = "名称和 cron 必填"; return; }
+  try {
+    if (id) await api("/api/push-tasks/" + id, { method: "PUT", body: JSON.stringify(body) });
+    else await api("/api/push-tasks", { method: "POST", body: JSON.stringify(body) });
+    toast(id ? "任务已更新" : "任务已创建", "ok");
+    resetTaskForm();
+    await loadPushTasks();
+  } catch (e) { $("ptMsg").textContent = e.message; toast(e.message, "err"); }
+};
+$("cancelTaskBtn").onclick = () => resetTaskForm();
+$("refreshTasksBtn").onclick = () => loadPushTasks();
+async function editTask(id) {
+  try {
+    const { data } = await api("/api/push-tasks/" + id);
+    const t = data.item;
+    $("ptId").value = t.id; $("ptName").value = t.name; $("ptCron").value = t.scheduleCron;
+    $("ptTemplate").value = t.template || ""; $("ptEnabled").checked = t.enabled;
+    $("ptMsg").textContent = "编辑中…";
+    $("ptName").focus();
+    $("settings").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { toast(e.message, "err"); }
+}
+async function delTask(id) {
+  if (!confirm("确定删除该定时推送任务？")) return;
+  try { await api("/api/push-tasks/" + id, { method: "DELETE" }); toast("已删除", "ok"); await loadPushTasks(); }
+  catch (e) { toast(e.message, "err"); }
+}
+async function toggleTask(id, enabled) {
+  try { await api("/api/push-tasks/" + id, { method: "PUT", body: JSON.stringify({ enabled }) }); await loadPushTasks(); }
+  catch (e) { toast(e.message, "err"); await loadPushTasks(); }
+}
 
 // ---------- 登录/退出 ----------
 $("loginBtn").onclick = async () => {

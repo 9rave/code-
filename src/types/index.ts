@@ -4,7 +4,7 @@ export type Priority = "low" | "medium" | "high";
 export type TaskStatus = "pending" | "completed" | "cancelled";
 export type ReviewType = "morning" | "evening" | "weekly";
 export type ReviewSource = "rule" | "ai";
-export type PushType = "morning" | "evening" | "weekly" | "test";
+export type PushType = "morning" | "evening" | "weekly" | "test" | "custom";
 
 // 内部 Task 与对外契约一致，使用 camelCase；queries 层负责与 D1 的 snake_case 列互转。
 export interface Task {
@@ -102,7 +102,7 @@ export interface Env {
   DB: D1Database;
   AI?: unknown; // Workers AI binding（可选）
   SESSION_SECRET: string;
-  WECOM_WEBHOOK_URL: string;
+  NOTIFY_WEBHOOK_URL: string;
   AI_ENABLED: string;
   AI_PROVIDER: string;
   AI_MODEL: string;

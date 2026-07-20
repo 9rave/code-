@@ -11,7 +11,7 @@ Cloudflare Workers · D1 (SQLite) · Cron Triggers · Workers AI（可选）· �
 ## 快速开始
 ```bash
 npm install
-cp .dev.vars.example .dev.vars   # 填入 SESSION_SECRET / WECOM_WEBHOOK_URL
+cp .dev.vars.example .dev.vars   # 填入 SESSION_SECRET / NOTIFY_WEBHOOK_URL（ntfy 等通用推送 webhook）
 
 # 1. 建库
 wrangler d1 create ai-todo
@@ -66,7 +66,7 @@ tests/                # 单元测试 + 集成测试（tests/integration：Minifl
 - **登录限流**：已落地为 D1 固定窗口（10 次/15 分钟/IP），跨实例一致；超限返回 429 并带 `Retry-After`。
 
 ## Secrets（不在仓库）
-`SESSION_SECRET` · `WECOM_WEBHOOK_URL`（仅启用第三方 Provider 时才加其 Key）
+`SESSION_SECRET` · `NOTIFY_WEBHOOK_URL`（ntfy 等通用推送 webhook；不配置则推送静默跳过）
 
 ## 仓库与协作
 - **目标远程仓库**：已确认 `https://github.com/9rave/code-` 为 `9rave` 名下的公开仓库（默认分支 `main`）。本地仓库当前尚未配置 remote；首次推送可执行 `git remote add origin https://github.com/9rave/code-.git && git push -u origin develop`。

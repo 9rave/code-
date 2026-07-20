@@ -38,7 +38,8 @@
     "crons": [
       "30 0 * * 1-5",
       "30 10 * * *",
-      "45 10 * * 5"
+      "45 10 * * 5",
+      "* * * * *"
     ]
   },
   // 多环境（见 ADR-006）：部署用 `wrangler deploy --env staging|production`

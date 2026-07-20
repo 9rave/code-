@@ -29,4 +29,4 @@ cp .dev.vars.example .dev.vars
 
 ## 密钥与配置
 - 环境变量在 `wrangler.jsonc` 的 `vars`（非敏感）。
-- 敏感信息（`SESSION_SECRET` / `WECOM_WEBHOOK_URL`）走 Secrets，不进仓库。
+- 敏感信息（`SESSION_SECRET` / `NOTIFY_WEBHOOK_URL`）走 Secrets，不进仓库。

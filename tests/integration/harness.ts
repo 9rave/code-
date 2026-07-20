@@ -30,6 +30,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const MIGRATION_FILES = [
   join(HERE, "../../src/db/migrations/0001_init.sql"),
   join(HERE, "../../src/db/migrations/0002_rate_limits.sql"),
+  join(HERE, "../../src/db/migrations/0003_push_tasks.sql"),
+  join(HERE, "../../src/db/migrations/0004_push_logs_custom.sql"),
 ];
 // D1's exec() rejects SQL beginning a statement with a "--" comment, and it
 // also treats inline "--" as a comment start. Strip "--" to end-of-line on
@@ -59,10 +61,10 @@ async function execScript(db: D1Database, sql: string): Promise<void> {
 }
 
 const SESSION_SECRET = "integration-test-secret-please-rotate";
-export const WECOM_URL = "https://hooks.example.invalid/webhook/test";
+export const NOTIFY_URL = "https://ntfy.example.invalid/ai-todo-test";
 
 // tables dropped (child → parent) before re-applying migrations each test
-const TABLES = ["rate_limits", "push_logs", "ai_usage", "reviews", "daily_logs", "tasks", "users"];
+const TABLES = ["rate_limits", "push_logs", "ai_usage", "reviews", "daily_logs", "tasks", "users", "push_tasks", "bot_config"];
 
 // ---------------------------------------------------------------------------
 // Miniflare lifecycle (one instance for the whole process)
@@ -112,7 +114,7 @@ export function makeEnv(db: D1Database, overrides: Partial<Env> = {}): Env {
   return {
     DB: db,
     SESSION_SECRET,
-    WECOM_WEBHOOK_URL: WECOM_URL,
+    NOTIFY_WEBHOOK_URL: NOTIFY_URL,
     AI_ENABLED: "false",
     AI_PROVIDER: "workers_ai",
     AI_MODEL: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
@@ -247,12 +249,12 @@ export async function loginAs(
 }
 
 // ---------------------------------------------------------------------------
-// WeCom webhook mock — intercepts the single `fetch` call sendPush makes
+// ntfy webhook mock — intercepts the single `fetch` call sendPush makes
 // ---------------------------------------------------------------------------
 export type WebhookBehavior = "ok" | "biz_error" | "always_500" | "http_500_then_ok";
 
 export interface WebhookMock {
-  calls: { url: string; markdown?: string; raw: any }[];
+  calls: { url: string; message?: string; raw: any }[];
   behavior: WebhookBehavior;
   setBehavior(b: WebhookBehavior): void;
   handler: typeof fetch;
@@ -268,18 +270,19 @@ export function createWebhookMock(): WebhookMock {
     handler: (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       let raw: any = null;
-      let markdown: string | undefined;
+      let message: string | undefined;
       try {
         raw = init?.body ? JSON.parse(init.body as string) : null;
-        markdown = raw?.markdown?.content;
+        message = raw?.message;
       } catch {
         /* ignore */
       }
-      mock.calls.push({ url: url ?? "", markdown, raw });
+      mock.calls.push({ url: url ?? "", message, raw });
 
       if (mock.behavior === "biz_error") {
-        return new Response(JSON.stringify({ errcode: 93000, errmsg: "invalid webhook key" }), {
-          status: 200,
+        // 4xx = 业务拒绝（如无效 topic），不重试
+        return new Response(JSON.stringify({ code: 40000, error: "topic not found" }), {
+          status: 400,
         });
       }
       if (mock.behavior === "always_500") {
@@ -288,9 +291,9 @@ export function createWebhookMock(): WebhookMock {
       if (mock.behavior === "http_500_then_ok") {
         // fail first two attempts, succeed on the third
         if (mock.calls.length < 3) return new Response("upstream 500", { status: 500 });
-        return new Response(JSON.stringify({ errcode: 0 }), { status: 200 });
+        return new Response("{}", { status: 200 });
       }
-      return new Response(JSON.stringify({ errcode: 0 }), { status: 200 });
+      return new Response("{}", { status: 200 });
     }) as typeof fetch,
   };
   return mock;

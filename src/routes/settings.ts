@@ -32,7 +32,7 @@ export async function status(_req: Request, env: Env, user: SessionPayload): Pro
           }
         : null,
       manualGenerationsToday: manualCount,
-      wecom: env.WECOM_WEBHOOK_URL ? "configured" : "missing",
+      notify: env.NOTIFY_WEBHOOK_URL ? "configured" : "missing",
     };
     return json(ok(data));
   } catch (e) {

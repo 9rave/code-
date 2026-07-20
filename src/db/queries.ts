@@ -473,3 +473,139 @@ export async function rateLimitHit(
     .run();
   return { allowed: ev.allowed, retryAfterMs: ev.retryAfterMs };
 }
+
+// ---------- 定时推送任务（推送任务系统） ----------
+export interface PushTask {
+  id: string;
+  name: string;
+  kind: "custom" | "morning" | "evening" | "weekly";
+  scheduleCron: string;
+  template: string;
+  enabled: boolean;
+  lastRunAt: string | null;
+  lastStatus: string | null;
+  nextRunAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function rowToPushTask(r: any): PushTask {
+  return {
+    id: r.id,
+    name: r.name,
+    kind: r.kind,
+    scheduleCron: r.schedule_cron,
+    template: r.template,
+    enabled: !!r.enabled,
+    lastRunAt: r.last_run_at,
+    lastStatus: r.last_status,
+    nextRunAt: r.next_run_at,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+export interface CreatePushTaskInput {
+  name: string;
+  scheduleCron: string;
+  template?: string;
+  kind?: "custom" | "morning" | "evening" | "weekly";
+  enabled?: boolean;
+  nextRunAt: string;
+}
+
+export async function createPushTask(db: DB, input: CreatePushTaskInput): Promise<PushTask> {
+  const id = uuid();
+  const now = nowIso();
+  await db
+    .prepare(
+      `INSERT INTO push_tasks (id, name, kind, schedule_cron, template, enabled, last_status, next_run_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'never', ?, ?, ?)`
+    )
+    .bind(
+      id,
+      input.name,
+      input.kind ?? "custom",
+      input.scheduleCron,
+      input.template ?? "",
+      input.enabled === false ? 0 : 1,
+      input.nextRunAt,
+      now,
+      now
+    )
+    .run();
+  return (await getPushTask(db, id))!;
+}
+
+export async function getPushTask(db: DB, id: string): Promise<PushTask | null> {
+  const r = await db.prepare("SELECT * FROM push_tasks WHERE id = ?").bind(id).first();
+  return r ? rowToPushTask(r) : null;
+}
+
+export async function listPushTasks(db: DB): Promise<PushTask[]> {
+  const rows = await db
+    .prepare("SELECT * FROM push_tasks ORDER BY created_at DESC")
+    .all();
+  return (rows.results ?? []).map(rowToPushTask);
+}
+
+export async function updatePushTask(
+  db: DB,
+  id: string,
+  patch: { name?: string; scheduleCron?: string; template?: string; enabled?: boolean; nextRunAt?: string }
+): Promise<PushTask | null> {
+  const sets: string[] = [];
+  const args: any[] = [];
+  if (patch.name !== undefined) { sets.push("name = ?"); args.push(patch.name); }
+  if (patch.scheduleCron !== undefined) { sets.push("schedule_cron = ?"); args.push(patch.scheduleCron); }
+  if (patch.template !== undefined) { sets.push("template = ?"); args.push(patch.template); }
+  if (patch.enabled !== undefined) { sets.push("enabled = ?"); args.push(patch.enabled ? 1 : 0); }
+  if (patch.nextRunAt !== undefined) { sets.push("next_run_at = ?"); args.push(patch.nextRunAt); }
+  if (sets.length === 0) return getPushTask(db, id);
+  sets.push("updated_at = ?");
+  args.push(nowIso(), id);
+  await db.prepare(`UPDATE push_tasks SET ${sets.join(", ")} WHERE id = ?`).bind(...args).run();
+  return getPushTask(db, id);
+}
+
+export async function deletePushTask(db: DB, id: string): Promise<void> {
+  await db.prepare("DELETE FROM push_tasks WHERE id = ?").bind(id).run();
+}
+
+// 调度器扫描：启用且已到/过 next_run_at 的任务
+export async function listDuePushTasks(db: DB, nowIsoStr: string): Promise<PushTask[]> {
+  const rows = await db
+    .prepare("SELECT * FROM push_tasks WHERE enabled = 1 AND next_run_at <= ? ORDER BY next_run_at ASC")
+    .bind(nowIsoStr)
+    .all();
+  return (rows.results ?? []).map(rowToPushTask);
+}
+
+export async function markPushTaskRun(
+  db: DB,
+  id: string,
+  status: "success" | "failed" | "skipped",
+  nextRunAt: string
+): Promise<void> {
+  await db
+    .prepare("UPDATE push_tasks SET last_run_at = ?, last_status = ?, next_run_at = ?, updated_at = ? WHERE id = ?")
+    .bind(nowIso(), status, nextRunAt, nowIso(), id)
+    .run();
+}
+
+// ---------- 机器人配置（UI 托管，替代/补充 secret） ----------
+export async function getBotConfig(db: DB, key: string): Promise<string | null> {
+  const r = await db.prepare("SELECT value FROM bot_config WHERE key = ?").bind(key).first();
+  return r ? (r as any).value : null;
+}
+
+export async function setBotConfig(db: DB, key: string, value: string): Promise<void> {
+  const now = nowIso();
+  await db
+    .prepare(
+      `INSERT INTO bot_config (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+    )
+    .bind(key, value, now)
+    .run();
+}

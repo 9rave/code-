@@ -16,7 +16,7 @@
 | AI 绑定 | `AI`（Workers AI，可选） |
 | 静态资源 | `assets.directory = public`，绑定名 `ASSETS`，由 `src/index.ts:69` 在未命中 API 路由时回退托管 |
 | Cron | `30 0 * * 1-5`（工作日早报）、`30 10 * * *`（晚报）、`45 10 * * 5`（周报），时区跟随 `BUSINESS_TIMEZONE=Asia/Shanghai` |
-| Secrets | `SESSION_SECRET`、`WECOM_WEBHOOK_URL`（启用第三方 AI 时加 `GEMINI_API_KEY`/`GROQ_API_KEY`/`DEEPSEEK_API_KEY`） |
+| Secrets | `SESSION_SECRET`、`NOTIFY_WEBHOOK_URL`（ntfy 等通用推送 webhook；不配置则推送静默跳过。启用第三方 AI 时加 `GEMINI_API_KEY`/`GROQ_API_KEY`/`DEEPSEEK_API_KEY`） |
 | 分支策略 | `main` 受保护，必须经 PR + CI；发布从 `develop` 走 PR 合入 `main` |
 
 > ⚠️ **staging / production 共用同一 Worker 名称**：当前 `wrangler.jsonc` 的 `env.staging` / `env.production` 未覆盖 `name`，因此 `wrangler deploy --env staging` 与 `--env production` 会**部署到同一个脚本 `ai-todo-assistant`**，互相覆盖。
@@ -51,7 +51,7 @@
 
 ### 1.5 密钥与第三方
 - [ ] `SESSION_SECRET` 已 `wrangler secret put`（≥32 位高熵随机串，如 `openssl rand -base64 48`）
-- [ ] `WECOM_WEBHOOK_URL` 已 `wrangler secret put`（企微群机器人 Webhook）
+- [ ] `NOTIFY_WEBHOOK_URL` 已 `wrangler secret put`（ntfy 话题 URL，如 `https://ntfy.sh/你的话题`；不配置则推送静默跳过）
 - [ ] 若启用 AI：已在 Cloudflare 控制台核实 `AI_MODEL` 当前可用；第三方 Provider 的 key 已 secret put
 - [ ] `AI_ENABLED` 决策明确：默认 `false`（纯规则，零成本）；staging 可 `true`
 
@@ -114,8 +114,9 @@ npm run seed
 npx wrangler secret put SESSION_SECRET
 # 粘贴：openssl rand -base64 48 的输出
 
-npx wrangler secret put WECOM_WEBHOOK_URL
-# 粘贴企微群机器人 Webhook 完整 URL
+npx wrangler secret put NOTIFY_WEBHOOK_URL
+# 粘贴 ntfy 话题完整 URL，如 https://ntfy.sh/你的话题
+# （用户无企业微信账号，已改用 ntfy 通用 webhook；可选，不配则推送静默跳过）
 
 # 仅在启用第三方 AI 时：
 # npx wrangler secret put GEMINI_API_KEY
@@ -196,7 +197,7 @@ npx wrangler secret put SESSION_SECRET --env production
 | `npm run migrate` 失败 | SQL 语法 / 迁移非幂等 | 本地 `wrangler d1 execute --local` 复现；检查 `0001/0002` 幂等 |
 | 登录接口 500（日志 `NotSupportedError: Pbkdf2 failed: iteration counts above 100000 are not supported`） | `src/security/password.ts` 的 PBKDF2 迭代次数 > 100000（Cloudflare Workers Web Crypto 上限） | 把 `ITERATIONS` 降到 ≤ 100000；并重设管理员密码（verifyPassword 用全局常量重新哈希，旧哈希不匹配）；`tests/password.test.ts` 已加断言守护 |
 | 登录接口 500（无上述 Pbkdf2 报错） | `SESSION_SECRET` 缺失 | `wrangler secret list` 确认已注入；本地 `.dev.vars` 复现 |
-| 推送失败 / 企微无消息 | `WECOM_WEBHOOK_URL` 错或群机器人被踢 | 查 `push_logs`；跑 `settings/test-push`；healthcheck 业务告警 B1 |
+| 推送失败 / 手机无消息 | `NOTIFY_WEBHOOK_URL` 错或话题不存在（ntfy 返回 4xx） | 查 `push_logs`；跑 `settings/test-push`；确认 ntfy 话题 URL 正确且已订阅 |
 | Cron 没按时触发 | `triggers.crons` 未注册或时区错 | 面板 Cron Triggers 页确认 3 条；核对 `BUSINESS_TIMEZONE` |
 | AI 调用失败 / 自动降级 | 模型 ID 失效或 key 缺失 | 查 `ai_usage`；healthcheck B3/B4；控制台核实 `AI_MODEL` 可用性 |
 | 迁移后数据异常 | 破坏性变更 | 用 `exports/` 备份恢复；补补偿 SQL |

@@ -385,6 +385,47 @@
             <div style="margin-bottom:12px"><input id="newPwd" type="password" placeholder="新密码（≥12位，含3类字符）" /></div>
             <button class="btn" id="chgPwdBtn">保存新密码</button>
           </div>
+
+          <!-- 机器人 / 推送通道配置 -->
+          <div class="card" style="margin-top:16px">
+            <h3 style="margin-bottom:6px; font-size:var(--fs-lg)">推送通道配置（机器人）</h3>
+            <p class="muted" style="margin-bottom:12px">配置消息推送的 Webhook 地址。支持 ntfy、ClawBot（微信）、Server酱、PushPlus 等。推荐自托管 <b>WeClawBot-API</b> 桥接微信 ClawBot：免费、合规、无需公众号。</p>
+            <div style="margin-bottom:8px"><input id="botWebhook" placeholder="https://... 推送 Webhook 地址" /></div>
+            <div class="toolbar" style="margin-bottom:0">
+              <select id="botProvider" style="width:auto">
+                <option value="">自动识别</option>
+                <option value="ntfy">ntfy</option>
+                <option value="clawbot">ClawBot（微信）</option>
+                <option value="serverchan">Server酱</option>
+                <option value="pushplus">PushPlus</option>
+              </select>
+              <button class="btn" id="saveBotBtn">保存通道</button>
+              <span id="botStatus" class="badge"></span>
+            </div>
+          </div>
+
+          <!-- 定时推送任务 -->
+          <div class="card" style="margin-top:16px">
+            <div class="view-head" style="margin-bottom:12px"><h3 style="font-size:var(--fs-lg)">定时推送任务</h3><span class="spacer"></span>
+              <button class="btn ghost sm" id="refreshTasksBtn">刷新</button></div>
+            <p class="muted" style="margin-bottom:10px">支持 5 字段 cron（如 <code>0 9 * * 1-5</code> 工作日 9 点）。模板变量：<code>{{date}}</code> <code>{{pending_count}}</code> <code>{{overdue_count}}</code> <code>{{high_count}}</code> <code>{{completed_count}}</code> <code>{{tasks}}</code></p>
+            <div class="card hover" style="margin-bottom:16px; background:var(--card-2)">
+              <h4 style="margin:0 0 10px; font-size:var(--fs-base)">新建 / 编辑任务</h4>
+              <input id="ptId" type="hidden" />
+              <div style="margin-bottom:8px"><input id="ptName" placeholder="任务名称（必填）" /></div>
+              <div class="toolbar" style="margin-bottom:8px">
+                <input id="ptCron" placeholder="cron 表达式，如 0 9 * * 1-5" style="font-family:monospace" />
+                <label style="display:flex; align-items:center; gap:6px; white-space:nowrap"><input type="checkbox" id="ptEnabled" class="checkbox" checked style="width:auto; min-height:auto" /> 启用</label>
+              </div>
+              <textarea id="ptTemplate" rows="3" placeholder="推送内容模板，如：{{date}} 待办 {{pending_count}} 项，逾期 {{overdue_count}} 项"></textarea>
+              <div class="toolbar" style="margin-top:10px; margin-bottom:0">
+                <button class="btn" id="saveTaskBtn">保存任务</button>
+                <button class="btn ghost" id="cancelTaskBtn">取消编辑</button>
+                <span id="ptMsg" class="muted"></span>
+              </div>
+            </div>
+            <div id="taskList"></div>
+          </div>
         </section>
       </main>
     </div>

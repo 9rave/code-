@@ -1,21 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { sanitizeWeComMarkdown, safeNotes, buildReviewInput } from "../src/security/sanitize";
+import { sanitizeNotifyText, safeNotes, buildReviewInput } from "../src/security/sanitize";
 
-describe("sanitizeWeComMarkdown (ADR-005)", () => {
+describe("sanitizeNotifyText (通用 webhook 护栏)", () => {
   it("剥离 HTML 标签但保留引用 '>'", () => {
-    const out = sanitizeWeComMarkdown("**x**\n<script>alert(1)</script>\n> 引用内容");
+    const out = sanitizeNotifyText("**x**\n<script>alert(1)</script>\n> 引用内容");
     expect(out).not.toContain("<script>");
     expect(out).toContain("> 引用内容");
     expect(out).toContain("**x**");
   });
 
   it("移除控制字符（保留换行）", () => {
-    const out = sanitizeWeComMarkdown("ab\nc");
+    const out = sanitizeNotifyText("ab\nc");
     expect(out).toBe("ab\nc");
   });
 
   it("截断到 maxLen", () => {
-    expect(sanitizeWeComMarkdown("x".repeat(5000), 10).length).toBe(10);
+    expect(sanitizeNotifyText("x".repeat(5000), 10).length).toBe(10);
   });
 });
 
