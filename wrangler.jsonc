@@ -21,7 +21,8 @@
     {
       "binding": "DB",
       "database_name": "ai-todo",
-      "database_id": "b6e24d99-aba1-4ab4-a5a8-c0746d02be33"
+      "database_id": "b6e24d99-aba1-4ab4-a5a8-c0746d02be33",
+      "migrations_dir": "src/db/migrations"
     }
   ],
   "ai": {
@@ -80,7 +81,7 @@
       },
       "workers_dev": true,
       "d1_databases": [
-        { "binding": "DB", "database_name": "ai-todo", "database_id": "b6e24d99-aba1-4ab4-a5a8-c0746d02be33" }
+        { "binding": "DB", "database_name": "ai-todo", "database_id": "b6e24d99-aba1-4ab4-a5a8-c0746d02be33", "migrations_dir": "src/db/migrations" }
       ],
       "ai": {
         "binding": "AI"
