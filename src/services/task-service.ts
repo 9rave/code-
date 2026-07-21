@@ -1,11 +1,12 @@
 // 任务服务（见开发指南 §6.4 / §8）
-import type { Env, Task, Priority, TaskStatus } from "../types";
+import type { Env, Task, Priority, TaskStatus, Recurrence } from "../types";
 import * as q from "../db/queries";
 import { HttpError, STATUS } from "../utils/errors";
 import { businessDate, addDays } from "../utils/time";
 
 const PRIORITIES: Priority[] = ["low", "medium", "high"];
 const STATUSES: TaskStatus[] = ["pending", "completed", "cancelled"];
+const RECURRENCES: Recurrence[] = ["daily", "weekly", "monthly", "hourly"];
 
 function validateCreate(body: any): q.CreateTaskInput {
   const title = typeof body.title === "string" ? body.title.trim() : "";
@@ -25,6 +26,12 @@ function validateCreate(body: any): q.CreateTaskInput {
   if (body.dueDate !== undefined && body.dueDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(body.dueDate)) {
     throw new HttpError(STATUS.VALIDATION_ERROR, "VALIDATION_ERROR", "dueDate 格式应为 YYYY-MM-DD");
   }
+  if (body.dueTime !== undefined && body.dueTime !== null && !/^\d{2}:\d{2}$/.test(body.dueTime)) {
+    throw new HttpError(STATUS.VALIDATION_ERROR, "VALIDATION_ERROR", "dueTime 格式应为 HH:MM");
+  }
+  if (body.recurrence !== undefined && body.recurrence !== null && !RECURRENCES.includes(body.recurrence)) {
+    throw new HttpError(STATUS.VALIDATION_ERROR, "VALIDATION_ERROR", "recurrence 非法（daily/weekly/monthly/hourly）");
+  }
   if (body.description !== undefined && typeof body.description !== "string") {
     throw new HttpError(STATUS.VALIDATION_ERROR, "VALIDATION_ERROR", "description 需为字符串");
   }
@@ -35,6 +42,9 @@ function validateCreate(body: any): q.CreateTaskInput {
     description: body.description ?? null,
     priority,
     dueDate: body.dueDate ?? null,
+    dueTime: body.dueTime ?? null,
+    recurrence: body.recurrence ?? null,
+    remindMe: body.remindMe === true,
     estimatedDurationMinutes: body.estimatedDurationMinutes ?? null,
     tags,
   };
@@ -76,6 +86,21 @@ export async function updateTask(env: Env, id: string, userId: string, body: any
     if (body.dueDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(body.dueDate))
       throw new HttpError(STATUS.VALIDATION_ERROR, "VALIDATION_ERROR", "dueDate 格式应为 YYYY-MM-DD");
     patch.dueDate = body.dueDate;
+  }
+  if (body.dueTime !== undefined) {
+    if (body.dueTime !== null && !/^\d{2}:\d{2}$/.test(body.dueTime))
+      throw new HttpError(STATUS.VALIDATION_ERROR, "VALIDATION_ERROR", "dueTime 格式应为 HH:MM");
+    patch.dueTime = body.dueTime;
+  }
+  if (body.recurrence !== undefined) {
+    if (body.recurrence !== null && !RECURRENCES.includes(body.recurrence))
+      throw new HttpError(STATUS.VALIDATION_ERROR, "VALIDATION_ERROR", "recurrence 非法（daily/weekly/monthly/hourly）");
+    patch.recurrence = body.recurrence;
+  }
+  if (body.remindMe !== undefined) {
+    if (typeof body.remindMe !== "boolean")
+      throw new HttpError(STATUS.VALIDATION_ERROR, "VALIDATION_ERROR", "remindMe 需为布尔值");
+    patch.remindMe = body.remindMe;
   }
   if (body.estimatedDurationMinutes !== undefined) {
     const n = Number(body.estimatedDurationMinutes);

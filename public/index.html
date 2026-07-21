@@ -278,19 +278,30 @@
             <button class="btn ghost sm" id="dashRefresh">刷新</button></div>
           <div class="kpi-grid" id="kpiGrid"></div>
           <div class="card hover" style="margin-bottom:16px">
-            <h3 style="margin-bottom:10px; font-size:var(--fs-lg)">快速新增</h3>
+            <h3 style="margin-bottom:6px; font-size:var(--fs-lg)">快速新增</h3>
+            <p class="muted" style="margin:0 0 10px; line-height:1.5">一句话添加，例如：<b>明天下午3点提醒我开会</b>、<b>每天9点喝水</b>、<b>周五前交报告 高优先级</b>。说出时间即自动开启到点提醒。</p>
             <div class="toolbar">
-              <input id="qTitle" class="grow" placeholder="新任务标题（必填）" />
-              <select id="qPriority" style="width:auto">
-                <option value="high">高</option><option value="medium" selected>中</option><option value="low">低</option>
-              </select>
-              <input id="qDue" type="date" style="width:auto" />
-              <input id="qDuration" type="number" min="0" inputmode="numeric" placeholder="时长(分)" style="width:110px" />
+              <input id="nlInput" class="grow" placeholder="说一句话就行…" style="font-size:16px" autocomplete="off" />
+              <button class="btn" id="nlAdd">添加</button>
             </div>
-            <div class="toolbar">
-              <input id="qTags" class="grow" placeholder="标签（逗号分隔，如 工作,紧急）" />
-              <button class="btn" id="qAdd">添加</button>
-            </div>
+            <div id="nlPreview" class="muted" style="margin-top:8px; min-height:18px"></div>
+            <details style="margin-top:10px">
+              <summary style="cursor:pointer; color:var(--muted); font-size:var(--fs-sm); user-select:none">高级 / 表单填写</summary>
+              <div style="margin-top:12px">
+                <div class="toolbar">
+                  <input id="qTitle" class="grow" placeholder="新任务标题（必填）" />
+                  <select id="qPriority" style="width:auto">
+                    <option value="high">高</option><option value="medium" selected>中</option><option value="low">低</option>
+                  </select>
+                  <input id="qDue" type="date" style="width:auto" />
+                  <input id="qDuration" type="number" min="0" inputmode="numeric" placeholder="时长(分)" style="width:110px" />
+                </div>
+                <div class="toolbar">
+                  <input id="qTags" class="grow" placeholder="标签（逗号分隔，如 工作,紧急）" />
+                  <button class="btn" id="qAdd">添加</button>
+                </div>
+              </div>
+            </details>
           </div>
           <div class="card"><h3 style="margin-bottom:10px; font-size:var(--fs-lg)">消息提醒</h3>
             <div id="reminderBox"><p class="muted">加载中…</p></div>

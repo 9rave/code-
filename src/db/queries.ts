@@ -15,6 +15,10 @@ function rowToTask(r: any): Task {
     priority: r.priority,
     status: r.status,
     dueDate: r.due_date,
+    dueTime: r.due_time ?? null,
+    recurrence: (r.recurrence as Task["recurrence"]) ?? null,
+    remindMe: !!r.remind_me,
+    remindedAt: r.reminded_at ?? null,
     estimatedDurationMinutes: r.estimated_duration_minutes,
     tags: r.tags_json ? JSON.parse(r.tags_json) : [],
     rolloverCount: r.rollover_count,
@@ -70,6 +74,9 @@ export interface CreateTaskInput {
   description?: string | null;
   priority?: Priority;
   dueDate?: string | null;
+  dueTime?: string | null;
+  recurrence?: Task["recurrence"];
+  remindMe?: boolean;
   estimatedDurationMinutes?: number | null;
   tags?: string[];
 }
@@ -79,8 +86,8 @@ export async function createTask(db: DB, input: CreateTaskInput): Promise<Task> 
   const now = nowIso();
   await db
     .prepare(
-      `INSERT INTO tasks (id, user_id, title, description, priority, status, due_date, estimated_duration_minutes, tags_json, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`
+      `INSERT INTO tasks (id, user_id, title, description, priority, status, due_date, due_time, recurrence, remind_me, estimated_duration_minutes, tags_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       id,
@@ -89,6 +96,9 @@ export async function createTask(db: DB, input: CreateTaskInput): Promise<Task> 
       input.description ?? null,
       input.priority ?? "medium",
       input.dueDate ?? null,
+      input.dueTime ?? null,
+      input.recurrence ?? null,
+      input.remindMe ? 1 : 0,
       input.estimatedDurationMinutes ?? null,
       JSON.stringify(input.tags ?? []),
       now,
@@ -145,7 +155,7 @@ export async function listTasks(db: DB, userId: string, f: ListTasksFilter): Pro
   const limit = Math.min(f.limit ?? 50, 100);
   conds.push("id > ?");
   args.push(f.cursor ?? "0");
-  const sql = `SELECT * FROM tasks WHERE ${conds.join(" AND ")} ORDER BY due_date ASC, created_at ASC LIMIT ?`;
+  const sql = `SELECT * FROM tasks WHERE ${conds.join(" AND ")} ORDER BY due_date ASC, due_time ASC, created_at ASC LIMIT ?`;
   args.push(limit + 1);
   const rows = await db.prepare(sql).bind(...args).all();
   const all = (rows.results ?? []).map(rowToTask);
@@ -165,6 +175,15 @@ export async function updateTask(db: DB, id: string, userId: string, patch: Part
   if (patch.priority !== undefined) { sets.push("priority = ?"); args.push(patch.priority); }
   if (patch.status !== undefined) { sets.push("status = ?"); args.push(patch.status); }
   if (patch.dueDate !== undefined) { sets.push("due_date = ?"); args.push(patch.dueDate); }
+  if ((patch as any).dueTime !== undefined) { sets.push("due_time = ?"); args.push((patch as any).dueTime); }
+  if ((patch as any).recurrence !== undefined) { sets.push("recurrence = ?"); args.push((patch as any).recurrence); }
+  if ((patch as any).remindMe !== undefined) {
+    sets.push("remind_me = ?");
+    args.push((patch as any).remindMe ? 1 : 0);
+    // 开启提醒时重置幂等标记，确保能再次触发；关闭则清空。
+    sets.push("reminded_at = ?");
+    args.push((patch as any).remindMe ? null : null);
+  }
   if (patch.estimatedDurationMinutes !== undefined) { sets.push("estimated_duration_minutes = ?"); args.push(patch.estimatedDurationMinutes); }
   if (patch.tags !== undefined) { sets.push("tags_json = ?"); args.push(JSON.stringify(patch.tags)); }
   if (sets.length === 0) return getTask(db, id, userId);
@@ -195,6 +214,46 @@ export async function softDeleteTask(db: DB, id: string, userId: string): Promis
     .prepare("UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ? AND user_id = ?")
     .bind(nowIso(), nowIso(), id, userId)
     .run();
+}
+
+// ---------- 到点提醒扫描（每分钟 Cron 调用，见 jobs/reminders.ts） ----------
+// 命中条件：
+//   - 一次性（recurrence 空）：due_date = 今天 且 due_time = 当前分钟 且 未提醒过
+//   - 每天：due_time = 当前分钟 且（未提醒 或 上次提醒早于今天）
+//   - 每周：due_time = 当前分钟 且 今天星期 = due_date 星期 且 今天未提醒过
+//   - 每月：due_time = 当前分钟 且 今天日期 = due_date 日期 且 今天未提醒过
+export async function listDueReminders(
+  db: DB,
+  userId: string,
+  date: string,
+  time: string
+): Promise<Task[]> {
+  const timed = await db
+    .prepare(
+      `SELECT * FROM tasks
+       WHERE user_id = ? AND status = 'pending' AND remind_me = 1 AND due_time = ?
+         AND (
+           ((recurrence IS NULL OR recurrence = '') AND due_date = ? AND reminded_at IS NULL)
+           OR (recurrence = 'daily' AND (reminded_at IS NULL OR substr(reminded_at,1,10) < ?))
+           OR (recurrence = 'weekly' AND (reminded_at IS NULL OR substr(reminded_at,1,10) < ?) AND strftime('%w', due_date) = strftime('%w', ?))
+           OR (recurrence = 'monthly' AND (reminded_at IS NULL OR substr(reminded_at,1,10) < ?) AND CAST(strftime('%d', due_date) AS INT) = CAST(strftime('%d', ?) AS INT))
+         )`
+    )
+    .bind(userId, time, date, date, date, date, date, date)
+    .all();
+  const hourly = await db
+    .prepare(
+      `SELECT * FROM tasks
+       WHERE user_id = ? AND status = 'pending' AND remind_me = 1 AND recurrence = 'hourly'
+         AND (reminded_at IS NULL OR reminded_at < ?)`
+    )
+    .bind(userId, new Date(Date.now() - 3600_000).toISOString())
+    .all();
+  return [...(timed.results ?? []), ...(hourly.results ?? [])].map(rowToTask);
+}
+
+export async function markReminded(db: DB, id: string, atIso: string): Promise<void> {
+  await db.prepare("UPDATE tasks SET reminded_at = ? WHERE id = ?").bind(atIso, id).run();
 }
 
 // ---------- 每日日志 ----------

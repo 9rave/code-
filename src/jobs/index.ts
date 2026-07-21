@@ -2,3 +2,4 @@
 export { runMorning } from "./morning";
 export { runEvening } from "./evening";
 export { runWeekly } from "./weekly";
+export { runDueReminders } from "./reminders";

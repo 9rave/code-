@@ -32,6 +32,7 @@ const MIGRATION_FILES = [
   join(HERE, "../../src/db/migrations/0002_rate_limits.sql"),
   join(HERE, "../../src/db/migrations/0003_push_tasks.sql"),
   join(HERE, "../../src/db/migrations/0004_push_logs_custom.sql"),
+  join(HERE, "../../src/db/migrations/0005_task_time.sql"),
 ];
 // D1's exec() rejects SQL beginning a statement with a "--" comment, and it
 // also treats inline "--" as a comment start. Strip "--" to end-of-line on

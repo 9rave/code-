@@ -14,6 +14,14 @@ function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 function fmtDate(d) { return d ? d : "—"; }
+function recurLabel(r) { return r === "daily" ? "每天" : r === "weekly" ? "每周" : r === "monthly" ? "每月" : r === "hourly" ? "每小时" : ""; }
+function whenBadges(t) {
+  const out = [];
+  if (t.dueTime) out.push(`<span class="pill">🕒 ${escapeHtml(t.dueTime)}</span>`);
+  if (t.recurrence) out.push(`<span class="pill">🔁 ${recurLabel(t.recurrence)}</span>`);
+  if (t.remindMe) out.push(`<span class="pill" style="background:rgba(52,211,153,.14);color:#6ee7b7">🔔 提醒</span>`);
+  return out.join(" ");
+}
 
 // ---------- Toast（规范 §6 消息提醒） ----------
 function toast(text, kind = "info") {
@@ -131,6 +139,48 @@ $("qAdd").onclick = async () => {
   } catch (e) { toast(e.message, "err"); }
 };
 
+// ---------- 自然语言「一句话建任务」（参考 AlarmRobot 的「一句家常话」理念） ----------
+function renderNlPreview(p, isError) {
+  if (!p) { $("nlPreview").textContent = ""; return; }
+  const parts = [];
+  if (p.dueDate) parts.push("📅 " + p.dueDate);
+  if (p.dueTime) parts.push("🕒 " + p.dueTime);
+  if (p.recurrence) parts.push("🔁 " + recurLabel(p.recurrence));
+  if (p.priority && p.priority !== "medium") parts.push(p.priority === "high" ? "🔴 高优先级" : "🔵 低优先级");
+  if (p.tags && p.tags.length) parts.push("🏷️ " + p.tags.map((x) => "#" + x).join(" "));
+  const title = p.title && p.title !== "提醒事项" ? p.title : "（待补充内容）";
+  $("nlPreview").innerHTML = (isError ? "⚠️ 没太懂：" : "将创建：") + `<b>${escapeHtml(title)}</b>` + (parts.length ? " · " + parts.join(" · ") : "");
+}
+async function quickAdd() {
+  const text = $("nlInput").value.trim();
+  if (!text) return toast("说点什么吧", "err");
+  try {
+    const res = await fetch("/api/tasks/quick-add", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (data?.error?.code === "PARSE_FAILED" && data.parsed) renderNlPreview(data.parsed, true);
+      throw new Error(data?.error?.message || "添加失败");
+    }
+    $("nlInput").value = ""; $("nlPreview").textContent = "";
+    const tk = data.data;
+    toast("已添加 ✅" + (tk.dueTime || tk.recurrence ? "（已开启提醒）" : ""), "ok");
+    loadDashboard(); refreshCurrent();
+  } catch (e) { toast(e.message, "err"); }
+}
+$("nlAdd").onclick = quickAdd;
+$("nlInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); quickAdd(); } });
+let nlTimer = null;
+$("nlInput").addEventListener("input", () => {
+  const text = $("nlInput").value.trim();
+  if (!text) { $("nlPreview").textContent = ""; return; }
+  $("nlPreview").textContent = "识别中…";
+  clearTimeout(nlTimer);
+  nlTimer = setTimeout(async () => {
+    try { const { data } = await api("/api/tasks/parse", { method: "POST", body: JSON.stringify({ text }) }); renderNlPreview(data, false); }
+    catch { /* 未登录或失败，静默 */ }
+  }, 350);
+});
+
 // ---------- 任务列表 / 看板（规范 §4） ----------
 async function loadTasksView() {
   const body = $("tasksBody");
@@ -172,13 +222,14 @@ function taskRowHtml(t) {
   if (t.dueDate) extra.push("截止 " + escapeHtml(t.dueDate));
   if (t.estimatedDurationMinutes) extra.push("约 " + t.estimatedDurationMinutes + " 分");
   const prioCls = t.priority === "high" ? "high" : t.priority === "medium" ? "medium" : "";
+  const badges = whenBadges(t);
   return `<div class="task ${done ? "done" : ""}" onclick="openDetail('${t.id}')">
     <input type="checkbox" class="checkbox" data-id="${t.id}" ${done ? "checked" : ""} onclick="event.stopPropagation()">
     <div class="meta">
       <span class="title">${escapeHtml(t.title)}</span>
       <div class="sub">
         <span class="pill ${prioCls}">${t.priority === "high" ? "高" : t.priority === "medium" ? "中" : "低"}</span>
-        ${extra.map((e) => `<span class="muted">${escapeHtml(e)}</span>`).join("")} ${tags}
+        ${extra.map((e) => `<span class="muted">${escapeHtml(e)}</span>`).join("")} ${badges} ${tags}
       </div>
     </div>
   </div>`;
@@ -221,7 +272,7 @@ function kanbanCols(items) {
     ${arr.map((t) => `<div class="kanban-card" draggable="true" data-id="${t.id}">
         <div style="font-weight:600">${escapeHtml(t.title)}</div>
         <div class="sub">${t.priority === "high" ? '<span class="pill high">高</span>' : t.priority === "medium" ? '<span class="pill medium">中</span>' : ""}
-        ${t.dueDate ? `<span class="muted">${escapeHtml(t.dueDate)}</span>` : ""}</div>
+        ${t.dueDate ? `<span class="muted">${escapeHtml(t.dueDate)}</span>` : ""}${t.dueTime ? `<span class="muted">🕒${escapeHtml(t.dueTime)}</span>` : ""}${t.recurrence ? `<span class="muted">🔁${recurLabel(t.recurrence)}</span>` : ""}</div>
       </div>`).join("")}</div>`;
   return col("待办", pending) + col("已完成", done);
 }
@@ -306,7 +357,7 @@ function showCalDay(ds) {
   $("calDayTasks").innerHTML = arr.length
     ? arr.map((t) => `<div class="task ${t.status === "completed" ? "done" : ""}" onclick="openDetail('${t.id}')">
         <span class="pill ${t.priority === "high" ? "high" : t.priority === "medium" ? "medium" : ""}">${t.priority === "high" ? "高" : t.priority === "medium" ? "中" : "低"}</span>
-        <span class="title">${escapeHtml(t.title)}</span></div>`).join("")
+        <span class="title">${escapeHtml(t.title)}</span></div>${whenBadges(t)}`).join("")
     : '<p class="muted">当天没有任务。</p>';
 }
 
@@ -352,6 +403,20 @@ function openDetail(id) {
         <div style="flex:1"><label class="muted">截止日期</label><input id="dDue" type="date" value="${t.dueDate || ""}" style="width:100%"></div>
         <div style="flex:1"><label class="muted">预计时长(分)</label><input id="dDur" type="number" min="0" value="${t.estimatedDurationMinutes || ""}" style="width:100%"></div>
       </div>
+      <div class="toolbar" style="margin-bottom:10px">
+        <div style="flex:1"><label class="muted">时间</label><input id="dTime" type="time" value="${t.dueTime || ""}" style="width:100%"></div>
+        <div style="flex:1"><label class="muted">周期</label><select id="dRecur" style="width:100%">
+          <option value="" ${!t.recurrence ? "selected" : ""}>一次性</option>
+          <option value="daily" ${t.recurrence === "daily" ? "selected" : ""}>每天</option>
+          <option value="weekly" ${t.recurrence === "weekly" ? "selected" : ""}>每周</option>
+          <option value="monthly" ${t.recurrence === "monthly" ? "selected" : ""}>每月</option>
+          <option value="hourly" ${t.recurrence === "hourly" ? "selected" : ""}>每小时</option>
+        </select></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;cursor:pointer">
+        <input type="checkbox" id="dRemind" class="checkbox" ${t.remindMe ? "checked" : ""} style="width:auto;min-height:auto">
+        <span class="muted">到点提醒（到达设定时间时推送通知）</span>
+      </label>
       <div><label class="muted">标签（逗号分隔）</label><input id="dTags" value="${(t.tags || []).map(escapeHtml).join(", ")}" style="width:100%"></div>`;
     $("detail").classList.add("open"); $("drawerBackdrop").classList.add("open");
   }).catch((e) => toast(e.message, "err"));
@@ -367,6 +432,9 @@ $("detailSave").onclick = async () => {
       title: $("dTitle").value.trim(), description: $("dDesc").value,
       priority: $("dPriority").value, status: $("dStatus").value,
       dueDate: $("dDue").value || undefined,
+      dueTime: $("dTime").value || undefined,
+      recurrence: $("dRecur").value || undefined,
+      remindMe: $("dRemind").checked,
       estimatedDurationMinutes: $("dDur").value ? Number($("dDur").value) : undefined, tags,
     }) });
     toast("已保存", "ok"); closeDetail(); refreshCurrent();

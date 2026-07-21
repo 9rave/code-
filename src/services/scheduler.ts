@@ -9,6 +9,7 @@ import { requestId } from "../utils/id";
 import { log } from "../utils/logger";
 import { nextRun } from "../utils/cron";
 import { firstUser } from "../jobs/_util";
+import { runDueReminders } from "../jobs/reminders";
 
 function fallbackNext(now: Date): string {
   return new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
@@ -40,6 +41,12 @@ export async function runScheduler(env: Env): Promise<void> {
   if (!user) {
     log("warn", "scheduler_skip", { reason: "no_user" }, reqId);
     return;
+  }
+  // 先处理到点任务提醒（AlarmRobot 式轻量提醒），再跑自定义推送任务。
+  try {
+    await runDueReminders(env);
+  } catch (e) {
+    log("error", "reminder_sweep_failed", { error: String(e) }, reqId);
   }
   const now = new Date();
   const due = await q.listDuePushTasks(env.DB, now.toISOString());

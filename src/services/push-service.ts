@@ -76,8 +76,9 @@ export function renderMorning(date: string, today: Task[], overdue: Task[], sour
   const all = [...overdue, ...today].slice(0, 15);
   all.forEach((t, i) => {
     const tag = t.dueDate && t.dueDate < date ? "[逾期] " : t.priority === "high" ? "[高] " : "";
+    const when = t.dueTime ? ` @${t.dueTime}` : "";
     const dur = t.estimatedDurationMinutes ? `（预计 ${t.estimatedDurationMinutes} 分钟）` : "";
-    lines.push(`${i + 1}. ${tag}${t.title}${dur}`);
+    lines.push(`${i + 1}. ${tag}${t.title}${when}${dur}`);
   });
   lines.push("");
   lines.push("建议：先处理逾期且高优先级事项。");

@@ -2,6 +2,8 @@
 
 export type Priority = "low" | "medium" | "high";
 export type TaskStatus = "pending" | "completed" | "cancelled";
+// 周期提醒（参考 AlarmRobot 的「周期性提醒」）。NULL = 一次性。
+export type Recurrence = "daily" | "weekly" | "monthly" | "hourly";
 export type ReviewType = "morning" | "evening" | "weekly";
 export type ReviewSource = "rule" | "ai";
 export type PushType = "morning" | "evening" | "weekly" | "test" | "custom";
@@ -15,6 +17,10 @@ export interface Task {
   priority: Priority;
   status: TaskStatus;
   dueDate: string | null;
+  dueTime: string | null; // HH:MM（24h），到点提醒用
+  recurrence: Recurrence | null; // 周期提醒；NULL = 一次性
+  remindMe: boolean; // 是否到点推送提醒
+  remindedAt: string | null; // 上次提醒时间（幂等）
   estimatedDurationMinutes: number | null;
   tags: string[];
   rolloverCount: number;

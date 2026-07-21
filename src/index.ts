@@ -51,6 +51,15 @@ export default {
         const u = await guard(env, req);
         return taskRoutes.create(req, env, u);
       }
+      // 一句话建任务 / 解析预览（AlarmRobot 式的自然语言入口）
+      if (path === "/api/tasks/quick-add" && method === "POST") {
+        const u = await guard(env, req);
+        return taskRoutes.quickAdd(req, env, u);
+      }
+      if (path === "/api/tasks/parse" && method === "POST") {
+        const u = await guard(env, req);
+        return taskRoutes.parse(req, env, u);
+      }
       const m = path.match(/^\/api\/tasks\/([^/]+)$/);
       if (m && method === "GET") return taskRoutes.get(req, env, await guard(env, req), m[1]);
       if (m && method === "PATCH") return taskRoutes.patch(req, env, await guard(env, req), m[1]);
