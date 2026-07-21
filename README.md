@@ -9,6 +9,13 @@
 Cloudflare Workers · D1 (SQLite) · Cron Triggers · Workers AI（可选）· 通道无关推送 Webhook（ntfy / PushPlus / Server酱 / 自托管 ClawBot 桥）· 静态前端（public/）。
 
 ## 快速开始
+
+> 💡 **先进入项目根目录**：本 README 所在的 `ai-todo-assistant/` 目录即项目根（其上层是工作区 `2026-07-16-20-33-41/`）。若从其他位置（如 home `~`）直接 `cd ai-todo-assistant` 报 `no such file or directory`，请改用绝对路径，例如：
+> ```bash
+> cd /Users/hodyli/WorkBuddy/2026-07-16-20-33-41/ai-todo-assistant
+> ```
+> 进入后再执行下面的 `npm run dev`（默认 http://localhost:8787）。
+
 ```bash
 npm install
 cp .dev.vars.example .dev.vars   # 填入 SESSION_SECRET / NOTIFY_WEBHOOK_URL（ntfy 等通用推送 webhook）
@@ -25,8 +32,8 @@ npm run migrate            # 等价于对 src/db/migrations/*.sql 顺序执行 w
 INITIAL_ADMIN_USERNAME=admin INITIAL_ADMIN_PASSWORD='你的强密码' npm run seed
 #   上线到生产库：INITIAL_ADMIN_USERNAME=admin INITIAL_ADMIN_PASSWORD='...' npm run seed -- --remote
 
-# 4. 本地开发
-npm run dev
+# 4. 本地开发（确保当前目录是本 README 所在的项目根）
+npm run dev                # wrangler dev，默认 http://localhost:8787
 
 # 5. 自测（类型检查 + 单元/集成测试，共 93 用例 / 15 文件）
 npm run typecheck
